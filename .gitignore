@@ -1,0 +1,10 @@
+# binarios
+*.exe
+/jogo
+/treino
+# editor
+.vscode/
+.idea/
+# go
+*.test
+*.out
