@@ -348,23 +348,6 @@ func cortarLacos(w []Vec2, janela int) {
 	}
 }
 
-// pontoDeCruzamento devolve o ponto em que os segmentos p1p2 e q1q2 se cruzam
-// (pontas incluídas). Segmentos paralelos não se cruzam.
-func pontoDeCruzamento(p1, p2, q1, q2 Vec2) (Vec2, bool) {
-	r, s := p2.Sub(p1), q2.Sub(q1)
-	den := r.Cross(s)
-	if den == 0 {
-		return Vec2{}, false
-	}
-	qp := q1.Sub(p1)
-	t := qp.Cross(s) / den
-	u := qp.Cross(r) / den
-	if t < 0 || t > 1 || u < 0 || u > 1 {
-		return Vec2{}, false
-	}
-	return p1.Add(r.Scale(t)), true
-}
-
 // semRepetidos devolve o circuito fechado p sem pontos iguais seguidos
 // (inclusive o último igual ao primeiro).
 func semRepetidos(p []Vec2) []Vec2 {
@@ -409,28 +392,4 @@ func cruzaEntre(a, b []Vec2) (int, int, bool) {
 		}
 	}
 	return 0, 0, false
-}
-
-// orientacao é o sinal de (q-p) × (r-p): >0 se r está à esquerda de p→q.
-func orientacao(p, q, r Vec2) float64 { return q.Sub(p).Cross(r.Sub(p)) }
-
-// noRetangulo diz se r (colinear com p e q) está dentro do retângulo de p a q.
-func noRetangulo(p, q, r Vec2) bool {
-	return math.Min(p.X, q.X) <= r.X && r.X <= math.Max(p.X, q.X) &&
-		math.Min(p.Y, q.Y) <= r.Y && r.Y <= math.Max(p.Y, q.Y)
-}
-
-// segmentosSeTocam diz se os segmentos p1p2 e q1q2 têm algum ponto em comum.
-func segmentosSeTocam(p1, p2, q1, q2 Vec2) bool {
-	d1 := orientacao(q1, q2, p1)
-	d2 := orientacao(q1, q2, p2)
-	d3 := orientacao(p1, p2, q1)
-	d4 := orientacao(p1, p2, q2)
-	if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) {
-		return true
-	}
-	return (d1 == 0 && noRetangulo(q1, q2, p1)) ||
-		(d2 == 0 && noRetangulo(q1, q2, p2)) ||
-		(d3 == 0 && noRetangulo(p1, p2, q1)) ||
-		(d4 == 0 && noRetangulo(p1, p2, q2))
 }

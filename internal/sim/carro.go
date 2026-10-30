@@ -40,7 +40,7 @@ type Leitura struct {
 	Sensores [7]float64 // distância até a parede / AlcanceSensor, em [0,1]
 	Vel      Vec2       // componentes x e y
 	Modulo   float64    // |Vel|
-	Angulo   float64    // atan2(Vel.Y, Vel.X)
+	Angulo   float64    // c.Angulo() (D11)
 }
 
 // limiarAngulo é o módulo de Vel abaixo do qual o carro mantém o ângulo anterior.
