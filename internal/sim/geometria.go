@@ -111,3 +111,25 @@ func caixasSeparadas(a, b, lo, hi Vec2) bool {
 	return max(a.X, b.X) < lo.X || min(a.X, b.X) > hi.X ||
 		max(a.Y, b.Y) < lo.Y || min(a.Y, b.Y) > hi.Y
 }
+
+// distanciaPontoSegmento é a distância do ponto q ao segmento ab (a = b vale
+// como o ponto a).
+func distanciaPontoSegmento(q, a, b Vec2) float64 {
+	ab := b.Sub(a)
+	l2 := ab.Dot(ab)
+	if l2 == 0 {
+		return q.Sub(a).Len()
+	}
+	t := math.Max(0, math.Min(1, q.Sub(a).Dot(ab)/l2))
+	return q.Sub(a.Add(ab.Scale(t))).Len()
+}
+
+// distanciaEntreSegmentos é a menor distância entre os segmentos ab e cd (0 se
+// eles se tocam).
+func distanciaEntreSegmentos(a, b, c, d Vec2) float64 {
+	if segmentosSeTocam(a, b, c, d) {
+		return 0
+	}
+	return math.Min(math.Min(distanciaPontoSegmento(a, c, d), distanciaPontoSegmento(b, c, d)),
+		math.Min(distanciaPontoSegmento(c, a, b), distanciaPontoSegmento(d, a, b)))
+}
