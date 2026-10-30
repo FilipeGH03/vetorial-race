@@ -260,12 +260,10 @@ func TestVoltaDirigindoComAvancar(t *testing.T) {
 				ctl.Acoes = append(ctl.Acoes, Acao{Ativa: true, Eixo: e.eixo, Sinal: s})
 			}
 		}
-		de := c.Pos
-		c.Avancar(ctl, p, cfg)
+		c.Avancar(ctl, p, cfg) // já atualiza o progresso (D15)
 		if c.Batido {
 			batidas++
 		}
-		c.AtualizarProgresso(de, p)
 	}
 	t.Logf("progresso %+v, %d batidas", c.Progresso, batidas)
 	if c.Progresso.Voltas < 1 {

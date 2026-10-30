@@ -120,7 +120,8 @@ func TestLerSempreEmZeroUm(t *testing.T) {
 	}
 }
 
-// Sem encostar em parede, Avancar faz exatamente o que Mover faz.
+// Sem encostar em parede, Avancar faz exatamente o que Mover faz (o carro anda
+// no meio da reta, longe da largada, então o progresso também não muda).
 func TestAvancarIgualMoverLongeDasParedes(t *testing.T) {
 	p := pistaRetangulo(t)
 	cfg := ConfigPadrao()

@@ -29,9 +29,7 @@ func TestProgressoInvariantesComColisao(t *testing.T) {
 						ctl.Acoes = append(ctl.Acoes, Acao{Ativa: true, Eixo: e, Sinal: s})
 					}
 				}
-				de := c.Pos
-				c.Avancar(ctl, p, cfg)
-				c.AtualizarProgresso(de, p)
+				c.Avancar(ctl, p, cfg) // já atualiza o progresso (D15)
 				pr := c.Progresso
 				if pr.Proximo < 0 || pr.Proximo >= n {
 					t.Fatalf("%s: Proximo %d fora de [0,%d)", p.Nome, pr.Proximo, n)

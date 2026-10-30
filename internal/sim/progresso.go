@@ -6,8 +6,9 @@ import (
 )
 
 // AtualizarProgresso põe em c.Progresso o que o carro andou no tick: o caminho
-// do tick é o segmento de "de" (a posição do começo do tick) até c.Pos. Quem
-// roda o tick chama Avancar e depois AtualizarProgresso com a posição de antes.
+// do tick é o segmento de "de" (a posição do começo do tick) até c.Pos. Só
+// Avancar chama esta função, no fim do tick (D15); quem roda a simulação chama
+// Avancar e não mexe no progresso.
 //
 // Um checkpoint só conta se é o Proximo, se o caminho o cruza no sentido da
 // pista (da parede esquerda para a direita, olhando de dentro para fora; ver
@@ -66,26 +67,45 @@ func (c *Carro) AtualizarProgresso(de Vec2, p *Pista) {
 	}
 }
 
+// folgaLinha é a tolerância (em px) com que um ponto é classificado em relação a
+// um checkpoint: a menos de folgaLinha à frente da linha ainda conta como "em
+// cima" (atrás). Também é a folga nas pontas do checkpoint. Não muda nada que
+// um carro perceba; só absorve o arredondamento de quem termina o tick sobre a
+// linha ou passa pela ponta em comum de um leque de checkpoints.
+const folgaLinha = 1e-6
+
 // cruzaCheckpoint diz se o caminho de "de" até "ate" cruza o checkpoint cp no
 // sentido da pista, e em que fração t do caminho (de 0 a 1). O sentido da pista
 // é o do lado esquerdo do checkpoint (cp.A, na parede esquerda) para o direito:
-// o carro sai do lado de trás (ou em cima da linha) e termina estritamente na
-// frente.
+// o carro sai do lado de trás (ou em cima da linha) e termina à frente.
+//
+// A decisão é só pelo sinal das orientações, cada ponto classificado sozinho:
+// "à frente" é estar a mais de folgaLinha à frente da reta do checkpoint. Como a
+// classificação de um ponto não depende do tick, o fim de um tick é o começo do
+// outro com o mesmo lado, e um carro que anda para a frente sempre tem um tick
+// em que passa de "atrás ou em cima" para "à frente": o progresso não trava por
+// arredondamento (achado da onda 3). O cruzamento tem de cair dentro do
+// checkpoint, com folga de folgaLinha nas pontas: as pontas cp.A e cp.B não podem
+// estar as duas do mesmo lado da reta do caminho.
 func cruzaCheckpoint(de, ate Vec2, cp Segmento) (float64, bool) {
-	if orientacao(cp.A, cp.B, de) > 0 || orientacao(cp.A, cp.B, ate) <= 0 {
+	l := cp.B.Sub(cp.A).Len()
+	if l == 0 {
 		return 0, false
 	}
-	r, s := ate.Sub(de), cp.B.Sub(cp.A)
-	den := r.Cross(s)
-	if den == 0 {
+	// Distâncias com sinal à reta do checkpoint, em px: > 0 é à frente.
+	dDe := orientacao(cp.A, cp.B, de) / l
+	dAte := orientacao(cp.A, cp.B, ate) / l
+	if dDe > folgaLinha || dAte <= folgaLinha {
 		return 0, false
 	}
-	ad := cp.A.Sub(de)
-	t := ad.Cross(s) / den
-	u := ad.Cross(r) / den
-	if t < 0 || t > 1 || u < -folgaPonta || u > 1+folgaPonta {
+	// Lados das pontas do checkpoint em relação à reta do caminho, em px.
+	r := ate.Sub(de).Len() // > 0: de e ate estão em lados diferentes
+	ladoA := orientacao(de, ate, cp.A) / r
+	ladoB := orientacao(de, ate, cp.B) / r
+	if (ladoA > folgaLinha && ladoB > folgaLinha) || (ladoA < -folgaLinha && ladoB < -folgaLinha) {
 		return 0, false
 	}
+	t := math.Max(0, math.Min(1, dDe/(dDe-dAte)))
 	return t, true
 }
 

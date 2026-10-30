@@ -1,7 +1,9 @@
 package sim
 
 // Avancar faz um tick completo do carro na pista (contrato 1.1, passos 1 a 5):
-// a física de Mover e depois a colisão com as paredes (D2).
+// a física de Mover, depois a colisão com as paredes (D2) e por fim o progresso
+// (AtualizarProgresso com a posição do começo do tick, D15). Corrida, jogo e
+// treino só chamam Avancar; ninguém chama AtualizarProgresso por fora.
 //
 // O carro bate quando o caminho do tick (o segmento da posição anterior à nova)
 // toca alguma parede; olhar o caminho, e não só o ponto final, impede que um
@@ -19,8 +21,10 @@ func (c *Carro) Avancar(ctl Controle, p *Pista, cfg Config) {
 	anterior := c.Pos
 	c.Mover(ctl, cfg)
 	if !cruzaParede(p, anterior, c.Pos) {
+		c.AtualizarProgresso(anterior, p)
 		return
 	}
+	// Bateu: volta ao começo do tick, então o progresso não muda.
 	c.Batido = true
 	c.Pos = anterior
 	c.Vel = Vec2{}
