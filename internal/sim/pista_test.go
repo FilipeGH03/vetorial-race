@@ -70,18 +70,32 @@ func TestOvalReamostraIgual(t *testing.T) {
 func TestOvalParedesFechadas(t *testing.T) {
 	p := carregarOval(t)
 	n := len(p.Centro)
+	retas := 0
 	for i := range p.Centro {
-		if d := p.ParedeEsq[i].Sub(p.Centro[i]).Len(); !perto(d, p.Largura/2) {
-			t.Errorf("ParedeEsq[%d] a %v da linha central, want %v", i, d, p.Largura/2)
+		// Numa reta a parede fica a meia largura do ponto; numa curva, mais longe
+		// (miter, ou o ponto onde o laço de dentro da quina foi cortado).
+		reta := math.Abs(p.Centro[i].Sub(p.Centro[(i-1+n)%n]).Cross(p.Centro[(i+1)%n].Sub(p.Centro[i]))) < 1e-6
+		for _, w := range []struct {
+			nome string
+			p    []Vec2
+		}{{"ParedeEsq", p.ParedeEsq}, {"ParedeDir", p.ParedeDir}} {
+			d := w.p[i].Sub(p.Centro[i]).Len()
+			cortado := w.p[i] == w.p[(i-1+n)%n] || w.p[i] == w.p[(i+1)%n]
+			if reta && !cortado && !perto(d, p.Largura/2) || d < p.Largura/2-1e-9 {
+				t.Errorf("%s[%d] a %v do ponto %d (reta=%v), want %v (ou mais, se curva)", w.nome, i, d, i, reta, p.Largura/2)
+			}
 		}
-		if d := p.ParedeDir[i].Sub(p.Centro[i]).Len(); !perto(d, p.Largura/2) {
-			t.Errorf("ParedeDir[%d] a %v da linha central, want %v", i, d, p.Largura/2)
+		if reta {
+			retas++
 		}
 		// Esquerda de quem anda no sentido da pista.
 		tan := p.Centro[(i+1)%n].Sub(p.Centro[(i-1+n)%n])
 		if tan.Cross(p.ParedeEsq[i].Sub(p.Centro[i])) <= 0 {
 			t.Errorf("ParedeEsq[%d] não está à esquerda", i)
 		}
+	}
+	if retas < n/2 {
+		t.Errorf("só %d de %d pontos em reta; o oval tem mais da metade em reta", retas, n)
 	}
 	// Fechadas e contínuas: todo trecho, inclusive o que liga o último ponto ao
 	// primeiro, é curto. Por fora de uma quina a parede abre um pouco: passo + largura.
@@ -111,8 +125,9 @@ func TestOvalCheckpoints(t *testing.T) {
 		if cp.A != p.ParedeEsq[i] || cp.B != p.ParedeDir[i] {
 			t.Errorf("checkpoint %d = %v, want de ParedeEsq[%d] a ParedeDir[%d]", i, cp, i, i)
 		}
-		if l := cp.B.Sub(cp.A).Len(); !perto(l, p.Largura) {
-			t.Errorf("checkpoint %d mede %v, want %v", i, l, p.Largura)
+		// De parede a parede: nunca menor que a largura (maior nas curvas).
+		if l := cp.B.Sub(cp.A).Len(); l < p.Largura-1e-9 {
+			t.Errorf("checkpoint %d mede %v, want ≥ %v", i, l, p.Largura)
 		}
 	}
 	// Largada: atravessa a pista no primeiro ponto do arquivo, (200,300), com a
