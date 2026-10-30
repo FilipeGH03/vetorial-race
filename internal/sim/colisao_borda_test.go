@@ -83,6 +83,9 @@ func TestSensoresContraMarchaDoRaio(t *testing.T) {
 					}
 				}
 				got := l.Sensores[i] * cfg.AlcanceSensor
+				if got < esperado-1e-3 && foraPertoDe(p, c.Pos, d, got) {
+					continue // o raio roça um recorte fino que o passo grosso da marcha não viu
+				}
 				if math.Abs(got-esperado) > 1e-3 {
 					t.Fatalf("%s, carro %v ang %v, sensor %d: Ler = %v px, marcha do raio = %v px", p.Nome, c.Pos, c.Angulo(), i, got, esperado)
 				}
@@ -199,4 +202,15 @@ func TestCaminhoNoVerticeDaParede(t *testing.T) {
 			}
 		}
 	}
+}
+
+// foraPertoDe diz se, perto de s ao longo do raio de o na direção d, algum
+// ponto está fora da pista (varredura fina, 0,005 px, em s ± 0,5).
+func foraPertoDe(p *Pista, o, d Vec2, s float64) bool {
+	for x := math.Max(s-0.5, 0); x <= s+0.5; x += 0.005 {
+		if !naPista(p, o.Add(d.Scale(x))) {
+			return true
+		}
+	}
+	return false
 }
