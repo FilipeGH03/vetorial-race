@@ -17,7 +17,9 @@ Precisa do Go 1.27 ou mais novo. Não precisa de compilador C no Windows.
 go run ./cmd/jogo
 ```
 
-Abre uma janela 1280x720 a 60 TPS com o carro parado e o FPS/TPS no canto (~60).
+Abre uma janela 1280x720 a 60 TPS com a pista `pistas/oval.json` e o carro na largada.
+Dirija com WASD ou as setas (duas teclas juntas dão a diagonal); bater na parede para o carro.
+Outra pista: `go run ./cmd/jogo -pista pistas/outra.json`.
 Na primeira vez o `go run` baixa as dependências sozinho.
 
 ## Verificar

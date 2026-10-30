@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,7 +11,10 @@ import (
 )
 
 func main() {
-	j, err := jogo.Novo()
+	pista := flag.String("pista", "pistas/oval.json", "arquivo da pista")
+	flag.Parse()
+
+	j, err := jogo.Novo(*pista)
 	if err != nil {
 		log.Fatal(err)
 	}
