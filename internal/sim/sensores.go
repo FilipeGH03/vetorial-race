@@ -5,6 +5,10 @@ import "math"
 // NumSensores é a quantidade de raios dos sensores (contrato 1.3).
 const NumSensores = 7
 
+// margemCaixaRaio (px) folga a caixa de cada raio contra o arredondamento e a
+// folgaPonta dos trechos.
+const margemCaixaRaio = 1e-6
+
 // angulosSensores são os ângulos dos raios, em graus, em relação ao ângulo do
 // carro (c.Angulo()); positivo é para a esquerda (anti-horário).
 var angulosSensores = [NumSensores]float64{-90, -45, -20, 0, 20, 45, 90}
@@ -59,13 +63,33 @@ func distanciasSensores(c *Carro, p *Pista, alcance float64) [NumSensores]float6
 	o := c.Pos
 	lo := Vec2{X: o.X - alcance, Y: o.Y - alcance}
 	hi := Vec2{X: o.X + alcance, Y: o.Y + alcance}
-	for t := range trechosParedes(p) {
-		if caixasSeparadas(t.A, t.B, lo, hi) {
-			continue // longe demais para qualquer raio
-		}
-		for i, d := range dirs {
-			if dd, ok := distanciaRaio(o, d, t.A, t.B); ok && dd < dist[i] {
-				dist[i] = dd
+	// Caixa de cada raio (com margem para o arredondamento): só os trechos que
+	// a tocam podem ser atingidos, e são poucos. Muda só a velocidade (A5).
+	var rlo, rhi [NumSensores]Vec2
+	for i, d := range dirs {
+		f := o.Add(d.Scale(alcance))
+		rlo[i] = Vec2{X: min(o.X, f.X) - margemCaixaRaio, Y: min(o.Y, f.Y) - margemCaixaRaio}
+		rhi[i] = Vec2{X: max(o.X, f.X) + margemCaixaRaio, Y: max(o.Y, f.Y) + margemCaixaRaio}
+	}
+	// Laço direto nas paredes (e não trechosParedes): é o caminho quente do treino.
+	for _, w := range [2][]Vec2{p.ParedeEsq, p.ParedeDir} {
+		for k, a := range w {
+			b := w[0]
+			if k+1 < len(w) {
+				b = w[k+1]
+			}
+			sLo := Vec2{X: min(a.X, b.X), Y: min(a.Y, b.Y)}
+			sHi := Vec2{X: max(a.X, b.X), Y: max(a.Y, b.Y)}
+			if sHi.X < lo.X || sLo.X > hi.X || sHi.Y < lo.Y || sLo.Y > hi.Y {
+				continue // longe demais para qualquer raio
+			}
+			for i, d := range dirs {
+				if sHi.X < rlo[i].X || sLo.X > rhi[i].X || sHi.Y < rlo[i].Y || sLo.Y > rhi[i].Y {
+					continue
+				}
+				if dd, ok := distanciaRaio(o, d, a, b); ok && dd < dist[i] {
+					dist[i] = dd
+				}
 			}
 		}
 	}

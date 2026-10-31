@@ -42,9 +42,16 @@ func cruzaParede(p *Pista, de, ate Vec2) bool {
 	}
 	lo := Vec2{X: min(de.X, ate.X), Y: min(de.Y, ate.Y)}
 	hi := Vec2{X: max(de.X, ate.X), Y: max(de.Y, ate.Y)}
-	for t := range trechosParedes(p) {
-		if !caixasSeparadas(t.A, t.B, lo, hi) && cruzaTrecho(de, ate, t.A, t.B) {
-			return true
+	// Laço direto nas paredes (e não trechosParedes): é o caminho quente de todo tick.
+	for _, w := range [2][]Vec2{p.ParedeEsq, p.ParedeDir} {
+		for k, a := range w {
+			b := w[0]
+			if k+1 < len(w) {
+				b = w[k+1]
+			}
+			if !caixasSeparadas(a, b, lo, hi) && cruzaTrecho(de, ate, a, b) {
+				return true
+			}
 		}
 	}
 	return false
