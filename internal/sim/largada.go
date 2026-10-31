@@ -41,7 +41,9 @@ const (
 // um do outro), eles se dividem em filas com o mesmo número de carros (±1).
 // Cada fila de trás atravessa a pista num ponto da linha central, apontada na
 // direção dela ali, no primeiro ponto em que fica inteira a pelo menos 0,5
-// largura da fila da frente (o comprimento do carro com folga). Na fila, os
+// largura da fila da frente (o comprimento do carro com folga). Cada fila leva
+// no máximo floor(largura livre dela / (0,2·largura)) carros (numa quina a faixa
+// pode ser mais estreita que a 1ª): o que não cabe vai para a fila seguinte. Na fila, os
 // carros se espalham por igual, da parede esquerda para a direita, na ordem dos
 // IDs.
 //
@@ -57,19 +59,17 @@ func Largada(p *Pista, n int) []Carro {
 		return nil
 	}
 	f0 := primeiraFila(p)
-	porFila := int(f0.largura() / (espacoLateralLargada * p.Largura))
-	porFila = max(1, min(n, porFila))
-	filas := (n + porFila - 1) / porFila
+	filas := (n + capacidadeFila(p, f0) - 1) / capacidadeFila(p, f0) // filas previstas pela 1ª
 	carros := make([]Carro, 0, n)
 	f, recuo := f0, RecuoLargada
-	for i := 0; i < filas; i++ {
+	for i := 0; len(carros) < n; i++ {
 		if i > 0 {
 			f, recuo = filaAtras(p, recuo, f)
 		}
-		k := n / filas
-		if i < n%filas {
-			k++
-		}
+		// Divide o que falta pelas filas que faltam (tamanhos iguais ±1), mas
+		// nunca passa da capacidade desta fila: o resto vai para a seguinte (A10).
+		falta := n - len(carros)
+		k := min(capacidadeFila(p, f), (falta+max(1, filas-i)-1)/max(1, filas-i))
 		for j := 0; j < k; j++ {
 			o := f.esq - f.largura()*(float64(j)+0.5)/float64(k)
 			c := NovoCarro(len(carros), f.base.Add(f.lateral.Scale(o)))
@@ -88,6 +88,13 @@ type faixa struct {
 }
 
 func (f faixa) largura() float64 { return f.esq - f.dir }
+
+// capacidadeFila é quantos carros cabem na faixa f com os vizinhos a pelo menos
+// espacoLateralLargada larguras um do outro: floor(largura livre / (0,2·largura)),
+// no mínimo 1 (A10).
+func capacidadeFila(p *Pista, f faixa) int {
+	return max(1, int(f.largura()/(espacoLateralLargada*p.Largura)))
+}
 
 // pontas devolve as pontas da faixa (direita e esquerda).
 func (f faixa) pontas() (Vec2, Vec2) {
