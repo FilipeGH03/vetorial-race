@@ -2,6 +2,7 @@ package ia
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"vetorial-race/internal/sim"
@@ -58,10 +59,12 @@ func TestEntradaOrdemENormalizacao(t *testing.T) {
 		Vel:      sim.Vec2{X: 200, Y: -100},
 		Modulo:   math.Hypot(200, -100),
 		Angulo:   1.23, // não entra na rede
+		DirPista: [2]sim.Vec2{{X: 0.6, Y: -0.8}, {X: -1, Y: 0}},
 	}
 	x := Entrada(l)
 	vmax := sim.ConfigPadrao().VMax
-	want := []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 200 / vmax, -100 / vmax, math.Hypot(200, -100) / vmax}
+	want := []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 200 / vmax, -100 / vmax, math.Hypot(200, -100) / vmax,
+		0.6, -0.8, -1, 0}
 	if len(x) != NEntrada {
 		t.Fatalf("len(Entrada) = %d, esperava %d", len(x), NEntrada)
 	}
@@ -72,7 +75,7 @@ func TestEntradaOrdemENormalizacao(t *testing.T) {
 	}
 }
 
-// redeFixa é uma 10-2 sem camada escondida cuja saída é (tanh(b0), tanh(b1)),
+// redeFixa é uma 14-2 sem camada escondida cuja saída é (tanh(b0), tanh(b1)),
 // mais s0 += tanh do sensor 0 com peso w0.
 func redeFixa(b0, b1, w0 float64) *Rede {
 	r := vazia([]int{NEntrada, NSaida})
@@ -90,7 +93,6 @@ func TestControladorDecide(t *testing.T) {
 		{-2, 2, sim.Acao{Ativa: true, Eixo: sim.EixoX, Sinal: -1}},
 		{-2, -2, sim.Acao{Ativa: true, Eixo: sim.EixoY, Sinal: -1}},
 		{2, -2, sim.Acao{Ativa: true, Eixo: sim.EixoY, Sinal: +1}},
-		{0.1, 2, sim.Acao{}}, // tanh(0.1) ≈ 0.0997: zona morta
 	}
 	for _, c := range casos {
 		ctl := NovoControlador(redeFixa(c.b0, c.b1, 0))
@@ -101,18 +103,43 @@ func TestControladorDecide(t *testing.T) {
 	}
 }
 
+// Na zona morta (D9) Decidir devolve Controle{}, sem nenhuma Acao (contrato 1.3).
+func TestControladorZonaMortaDevolveControleVazio(t *testing.T) {
+	for _, b0 := range []float64{0, 0.1, -0.1, 0.2, -0.2} { // tanh(0.2) ≈ 0.197
+		got := NovoControlador(redeFixa(b0, 2, 0)).Decidir(sim.Leitura{})
+		if got.Acoes != nil {
+			t.Errorf("s0 = tanh(%v): %+v, esperava Controle{}", b0, got)
+		}
+	}
+}
+
 func TestControladorUsaAEntrada(t *testing.T) {
 	// s0 = tanh(sensor 0): sensor perto da parede (0.1) cai na zona morta,
 	// sensor livre (1) aumenta x.
 	ctl := NovoControlador(redeFixa(0, 2, 1))
 	l := sim.Leitura{}
 	l.Sensores[0] = 0.1
-	if a := ctl.Decidir(l).Acoes[0]; a.Ativa {
-		t.Errorf("sensor 0.1 deu %+v, esperava zona morta", a)
+	if got := ctl.Decidir(l); len(got.Acoes) != 0 {
+		t.Errorf("sensor 0.1 deu %+v, esperava zona morta", got)
 	}
 	l.Sensores[0] = 1
-	if a := ctl.Decidir(l).Acoes[0]; a != (sim.Acao{Ativa: true, Eixo: sim.EixoX, Sinal: 1}) {
-		t.Errorf("sensor 1 deu %+v", a)
+	if got := ctl.Decidir(l); len(got.Acoes) != 1 || got.Acoes[0] != (sim.Acao{Ativa: true, Eixo: sim.EixoX, Sinal: 1}) {
+		t.Errorf("sensor 1 deu %+v", got)
+	}
+}
+
+// As 4 entradas de DirPista (D20) chegam à rede: s0 = tanh(DirPista[1].Y).
+func TestControladorUsaDirPista(t *testing.T) {
+	r := redeFixa(0, 2, 0)
+	r.Pesos[0].Set(0, NEntrada-1, 1)
+	ctl := NovoControlador(r)
+	l := sim.Leitura{DirPista: [2]sim.Vec2{{X: 1}, {Y: -1}}}
+	if got := ctl.Decidir(l); len(got.Acoes) != 1 || got.Acoes[0] != (sim.Acao{Ativa: true, Eixo: sim.EixoX, Sinal: -1}) {
+		t.Errorf("DirPista[1] = (0, -1) deu %+v, esperava diminuir x", got)
+	}
+	l.DirPista[1] = sim.Vec2{X: 1}
+	if got := ctl.Decidir(l); len(got.Acoes) != 0 {
+		t.Errorf("DirPista[1] = (1, 0) deu %+v, esperava zona morta", got)
 	}
 }
 
@@ -132,7 +159,16 @@ func TestControladorRedeFunda(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := NovoControlador(r).Decidir(sim.Leitura{}); len(got.Acoes) != 1 {
-		t.Fatalf("rede 10-8-6-2 devolveu %+v", got)
+	l := sim.Leitura{Sensores: [7]float64{1, 1, 1, 1, 1, 1, 1}, DirPista: [2]sim.Vec2{{X: 1}, {Y: 1}}}
+	s, err := r.Forward(Entrada(l))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want []sim.Acao
+	if a := AcaoDaSaida(s); a.Ativa {
+		want = []sim.Acao{a}
+	}
+	if got := NovoControlador(r).Decidir(l); !reflect.DeepEqual(got.Acoes, want) {
+		t.Fatalf("rede 14-8-6-2 devolveu %+v, a saída %v pede %+v", got, s, want)
 	}
 }

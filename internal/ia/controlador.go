@@ -14,14 +14,19 @@ const ZonaMorta = 0.2
 // treino usam as mesmas constantes (contrato 1.1), então é o de ConfigPadrao.
 var vmaxEntrada = sim.ConfigPadrao().VMax
 
-// Entrada monta o vetor de entrada da rede (contrato 1.3), NEntrada valores
-// nesta ordem: Sensores[0..6], Vel.X/VMax, Vel.Y/VMax, Modulo/VMax.
+// Entrada monta o vetor de entrada da rede (contrato 1.3, D20), NEntrada
+// valores nesta ordem: Sensores[0..6], Vel.X/VMax, Vel.Y/VMax, Modulo/VMax,
+// DirPista[0].X, DirPista[0].Y, DirPista[1].X, DirPista[1].Y.
 func Entrada(l sim.Leitura) []float64 {
 	x := make([]float64, NEntrada)
 	n := copy(x, l.Sensores[:])
 	x[n] = l.Vel.X / vmaxEntrada
 	x[n+1] = l.Vel.Y / vmaxEntrada
 	x[n+2] = l.Modulo / vmaxEntrada
+	for k, d := range l.DirPista {
+		x[n+3+2*k] = d.X
+		x[n+4+2*k] = d.Y
+	}
 	return x
 }
 
@@ -44,8 +49,8 @@ func AcaoDaSaida(s []float64) sim.Acao {
 }
 
 // Controlador dirige um carro com uma rede (implementa sim.Controlador): a
-// cada tick monta a Entrada da Leitura, roda a rede e devolve uma Acao
-// (contrato 1.3). Não guarda estado nem altera a rede.
+// cada tick monta a Entrada da Leitura, roda a rede e devolve no máximo uma
+// Acao (contrato 1.3). Não guarda estado nem altera a rede.
 type Controlador struct {
 	Rede *Rede
 }
@@ -56,7 +61,8 @@ func NovoControlador(r *Rede) *Controlador {
 }
 
 // Decidir roda a rede sobre a Leitura e devolve um Controle com uma Acao
-// (inativa na zona morta). Sem rede, ou com rede malformada, não mexe em nada.
+// ativa, ou Controle{} (sem nenhuma Acao) na zona morta (contrato 1.3, D9).
+// Sem rede, ou com rede malformada, também não mexe em nada.
 //
 // Rede.Forward aloca a cada chamada; medido no oval: ~0,6 µs por tick contra
 // ~5 µs do sim.Ler, então não vale reaproveitar buffers aqui.
@@ -68,5 +74,9 @@ func (c *Controlador) Decidir(l sim.Leitura) sim.Controle {
 	if err != nil {
 		return sim.Controle{}
 	}
-	return sim.Controle{Acoes: []sim.Acao{AcaoDaSaida(s)}}
+	a := AcaoDaSaida(s)
+	if !a.Ativa {
+		return sim.Controle{}
+	}
+	return sim.Controle{Acoes: []sim.Acao{a}}
 }

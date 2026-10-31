@@ -40,12 +40,12 @@ func TestMulVecTamanhoErrado(t *testing.T) {
 	}
 }
 
-// redeConhecida é uma 10-2-2 de pesos simples:
+// redeConhecida é uma 14-2-2 de pesos simples:
 //
 //	h0 = tanh(1·x0 + 0·...        + 0)      h1 = tanh(0.5·x1 - 0.25·x2 + 0.1)
 //	y0 = tanh(2·h0 + 0.5·h1 - 0.5)          y1 = tanh(-1·h0 + 1·h1)
 func redeConhecida() *Rede {
-	r := vazia([]int{10, 2, 2})
+	r := vazia([]int{NEntrada, 2, 2})
 	r.Pesos[0].Set(0, 0, 1)
 	r.Pesos[0].Set(1, 1, 0.5)
 	r.Pesos[0].Set(1, 2, -0.25)
@@ -62,7 +62,7 @@ func TestForwardPesosConhecidos(t *testing.T) {
 	r := redeConhecida()
 
 	// Entrada toda zero: h0 = tanh(0) = 0, h1 = tanh(0.1).
-	x := make([]float64, 10)
+	x := make([]float64, NEntrada)
 	got, err := r.Forward(x)
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestForwardPesosConhecidos(t *testing.T) {
 
 func TestForwardSaturaEmMenos1Mais1(t *testing.T) {
 	r := redeConhecida()
-	x := make([]float64, 10)
+	x := make([]float64, NEntrada)
 	x[0] = 1000
 	got, err := r.Forward(x)
 	if err != nil {
@@ -116,19 +116,19 @@ func TestForwardSaturaEmMenos1Mais1(t *testing.T) {
 
 func TestForwardEntradaTamanhoErrado(t *testing.T) {
 	r := redeConhecida()
-	for _, n := range []int{0, 9, 11} {
+	for _, n := range []int{0, 10, NEntrada - 1, NEntrada + 1} {
 		if _, err := r.Forward(make([]float64, n)); err == nil {
 			t.Fatalf("entrada com %d valores deveria dar erro", n)
 		}
 	}
 }
 
-func TestNovaRede10_12_2(t *testing.T) {
+func TestNovaRede14_12_2(t *testing.T) {
 	r, err := NovaRede(CamadasPadrao, rand.New(rand.NewPCG(7, 7)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Pesos[0].L != 12 || r.Pesos[0].C != 10 || r.Pesos[1].L != 2 || r.Pesos[1].C != 12 {
+	if r.Pesos[0].L != 12 || r.Pesos[0].C != NEntrada || r.Pesos[1].L != 2 || r.Pesos[1].C != 12 {
 		t.Fatalf("formas erradas: %dx%d e %dx%d", r.Pesos[0].L, r.Pesos[0].C, r.Pesos[1].L, r.Pesos[1].C)
 	}
 	if len(r.Vieses[0]) != 12 || len(r.Vieses[1]) != 2 {
@@ -140,7 +140,7 @@ func TestNovaRede10_12_2(t *testing.T) {
 			t.Fatalf("peso %v acima do limite %v", v, lim)
 		}
 	}
-	out, err := r.Forward([]float64{1, 0.5, 0, 0.2, 1, 0.3, 0.7, 0.1, -0.1, 0.4})
+	out, err := r.Forward([]float64{1, 0.5, 0, 0.2, 1, 0.3, 0.7, 0.1, -0.1, 0.4, 0.6, -0.8, 0, 1})
 	if err != nil || len(out) != 2 {
 		t.Fatalf("forward: %v %v", out, err)
 	}
@@ -159,13 +159,13 @@ func TestNovaRedeMesmaSeedMesmaRede(t *testing.T) {
 }
 
 func TestNovaRedeCamadasInvalidas(t *testing.T) {
-	for _, c := range [][]int{nil, {10}, {9, 12, 2}, {10, 12, 3}, {10, 0, 2}, {10, -1, 2}} {
+	for _, c := range [][]int{nil, {NEntrada}, {9, 12, 2}, {10, 12, 2}, {NEntrada, 12, 3}, {NEntrada, 0, 2}, {NEntrada, -1, 2}} {
 		if _, err := NovaRede(c, nil); !errors.Is(err, ErrCerebroInvalido) {
 			t.Errorf("camadas %v: erro = %v, esperava ErrCerebroInvalido", c, err)
 		}
 	}
-	if _, err := NovaRede([]int{10, 8, 6, 2}, nil); err != nil {
-		t.Errorf("10-8-6-2 deveria valer: %v", err)
+	if _, err := NovaRede([]int{NEntrada, 8, 6, 2}, nil); err != nil {
+		t.Errorf("14-8-6-2 deveria valer: %v", err)
 	}
 }
 
@@ -188,7 +188,7 @@ func TestSalvarCarregarMesmaSaida(t *testing.T) {
 	}
 	rng := rand.New(rand.NewPCG(5, 6))
 	for n := 0; n < 50; n++ {
-		x := make([]float64, 10)
+		x := make([]float64, NEntrada)
 		for i := range x {
 			x[i] = rng.Float64()*2 - 1
 		}
@@ -229,8 +229,8 @@ func TestSalvarFormatoDoContrato(t *testing.T) {
 	if err := json.Unmarshal(m["pesos"], &pesos); err != nil {
 		t.Fatal(err)
 	}
-	// linhas = neurônios de saída: pesos[0] é 2 linhas de 10; pesos[1] é 2 linhas de 2.
-	if len(pesos[0]) != 2 || len(pesos[0][0]) != 10 || pesos[0][1][1] != 0.5 || pesos[0][1][2] != -0.25 {
+	// linhas = neurônios de saída: pesos[0] é 2 linhas de 14; pesos[1] é 2 linhas de 2.
+	if len(pesos[0]) != 2 || len(pesos[0][0]) != NEntrada || pesos[0][1][1] != 0.5 || pesos[0][1][2] != -0.25 {
 		t.Errorf("pesos[0] fora da convenção linhas = saída: %v", pesos[0])
 	}
 	if pesos[1][1][0] != -1 {
@@ -279,12 +279,12 @@ func TestSalvarRedeMalformada(t *testing.T) {
 	if err := r.Salvar(filepath.Join(t.TempDir(), "c.json")); !errors.Is(err, ErrCerebroInvalido) {
 		t.Fatalf("erro = %v", err)
 	}
-	if _, err := r.Forward(make([]float64, 10)); !errors.Is(err, ErrCerebroInvalido) {
+	if _, err := r.Forward(make([]float64, NEntrada)); !errors.Is(err, ErrCerebroInvalido) {
 		t.Fatalf("forward em rede malformada: %v", err)
 	}
 }
 
-// brutoValido devolve o JSON de uma rede 10-2-2 (valores 0) para os testes de
+// brutoValido devolve o JSON de uma rede 14-2-2 (valores 0) para os testes de
 // arquivo corrompido mexerem.
 func brutoValido() map[string]any {
 	zeros := func(l, c int) [][]float64 {
@@ -296,9 +296,9 @@ func brutoValido() map[string]any {
 	}
 	return map[string]any{
 		"versao":   1,
-		"camadas":  []int{10, 2, 2},
+		"camadas":  []int{NEntrada, 2, 2},
 		"ativacao": "tanh",
-		"pesos":    [][][]float64{zeros(2, 10), zeros(2, 2)},
+		"pesos":    [][][]float64{zeros(2, NEntrada), zeros(2, 2)},
 		"vieses":   [][]float64{{0, 0}, {0, 0}},
 		"pista":    "x", "geracao": 0, "pontuacao": 0,
 	}
@@ -327,12 +327,13 @@ func TestCarregarBrutoValido(t *testing.T) {
 func TestCarregarCamadasErradas(t *testing.T) {
 	casos := map[string][]int{
 		"entrada 9":  {9, 2, 2},
+		"entrada 10": {10, 2, 2}, // cérebro antigo (antes da D20)
 		"entrada 11": {11, 2, 2},
-		"saida 3":    {10, 2, 3},
-		"saida 1":    {10, 2, 1},
-		"uma camada": {10},
+		"saida 3":    {NEntrada, 2, 3},
+		"saida 1":    {NEntrada, 2, 1},
+		"uma camada": {NEntrada},
 		"sem camada": {},
-		"zero":       {10, 0, 2},
+		"zero":       {NEntrada, 0, 2},
 	}
 	for nome, camadas := range casos {
 		m := brutoValido()
@@ -350,7 +351,7 @@ func TestCarregarCamadasErradas(t *testing.T) {
 
 func TestCarregarCamadasGigantesNaoAlocam(t *testing.T) {
 	m := brutoValido()
-	m["camadas"] = []int{10, 1 << 40, 2}
+	m["camadas"] = []int{NEntrada, 1 << 40, 2}
 	if err := carregarBruto(t, m); !errors.Is(err, ErrCerebroInvalido) {
 		t.Fatalf("erro = %v", err)
 	}
@@ -365,11 +366,11 @@ func TestCarregarPesosOuViesesNaoCombinam(t *testing.T) {
 		return m
 	}
 	casos := map[string]func(m map[string]any){
-		"linhas a menos":    func(m map[string]any) { m["pesos"] = [][][]float64{zeros(1, 10), zeros(2, 2)} },
+		"linhas a menos":    func(m map[string]any) { m["pesos"] = [][][]float64{zeros(1, NEntrada), zeros(2, 2)} },
 		"colunas a menos":   func(m map[string]any) { m["pesos"] = [][][]float64{zeros(2, 9), zeros(2, 2)} },
-		"matriz a menos":    func(m map[string]any) { m["pesos"] = [][][]float64{zeros(2, 10)} },
-		"matriz a mais":     func(m map[string]any) { m["pesos"] = [][][]float64{zeros(2, 10), zeros(2, 2), zeros(2, 2)} },
-		"transposta":        func(m map[string]any) { m["pesos"] = [][][]float64{zeros(10, 2), zeros(2, 2)} },
+		"matriz a menos":    func(m map[string]any) { m["pesos"] = [][][]float64{zeros(2, NEntrada)} },
+		"matriz a mais":     func(m map[string]any) { m["pesos"] = [][][]float64{zeros(2, NEntrada), zeros(2, 2), zeros(2, 2)} },
+		"transposta":        func(m map[string]any) { m["pesos"] = [][][]float64{zeros(NEntrada, 2), zeros(2, 2)} },
 		"vies a menos":      func(m map[string]any) { m["vieses"] = [][]float64{{0}, {0, 0}} },
 		"vieses a menos":    func(m map[string]any) { m["vieses"] = [][]float64{{0, 0}} },
 		"pesos nulo":        func(m map[string]any) { m["pesos"] = nil },

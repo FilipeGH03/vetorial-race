@@ -37,14 +37,17 @@ Depois: `go run ./cmd/jogo -pista pistas/minha.json`.
 ## Treino da IA
 
 ```
-go run ./cmd/treino -pista pistas/oval.json -geracoes 30 -seed 1
+go run ./cmd/treino -pista pistas/oval.json -geracoes 100 -seed 1
 ```
 
-Roda a neuroevolução sem janela: 50 redes por geração, cada uma dirige sozinha da largada até
-bater ou até 60 s (bater mata), e a nota é a distância percorrida mais bônus por volta e por volta
-rápida. Imprime a melhor nota de cada geração e grava a melhor rede em `cerebros/<pista>.json`
-(ou em `-saida arq`). A mesma seed dá sempre o mesmo resultado. Outras opções: `-camadas 10,16,2`
-(entrada 10 e saída 2) e `-populacao n`.
+Roda a neuroevolução sem janela: 50 redes por geração, cada uma dirige sozinha da largada por até
+60 s. Bater na parede zera a velocidade e devolve o carro à última posição válida (como na corrida),
+custa 5 pontos, e o indivíduo é encerrado se passar 1 s (60 ticks) sem avançar. A nota é a distância
+percorrida + 1000 por volta + 20 por segundo poupado na 1ª volta − 5 por batida. A rede vê 14
+entradas: 7 sensores em direções fixas do mundo, a velocidade (x, y e módulo) e a direção da pista à
+frente. Imprime a melhor nota de cada geração e grava a melhor rede em
+`cerebros/<arquivo da pista sem extensão>.json` (ou em `-saida arq`). A mesma seed dá sempre o mesmo
+resultado. Outras opções: `-camadas 14,16,2` (entrada 14 e saída 2) e `-populacao n`.
 
 ## Verificar
 

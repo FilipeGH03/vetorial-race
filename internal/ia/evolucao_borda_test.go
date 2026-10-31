@@ -29,9 +29,9 @@ func TestBordaMesmaSeedVariasGeracoes(t *testing.T) {
 
 func TestBordaElite0Tamanho2Torneio1(t *testing.T) {
 	for _, p := range []Params{
-		{Camadas: []int{10, 4, 2}, Tamanho: 2, Elite: 0, Torneio: 1, TaxaMutacao: 1, Sigma: 0, Seed: 3},
-		{Camadas: []int{10, 4, 2}, Tamanho: 2, Elite: 1, Torneio: 50, TaxaMutacao: 0, Sigma: 0.3, Seed: 3},
-		{Camadas: []int{10, 6, 5, 2}, Tamanho: 7, Elite: 6, Torneio: 3, TaxaMutacao: 0.1, Sigma: 0.3, Seed: 0},
+		{Camadas: []int{NEntrada, 4, 2}, Tamanho: 2, Elite: 0, Torneio: 1, TaxaMutacao: 1, Sigma: 0, Seed: 3},
+		{Camadas: []int{NEntrada, 4, 2}, Tamanho: 2, Elite: 1, Torneio: 50, TaxaMutacao: 0, Sigma: 0.3, Seed: 3},
+		{Camadas: []int{NEntrada, 6, 5, 2}, Tamanho: 7, Elite: 6, Torneio: 3, TaxaMutacao: 0.1, Sigma: 0.3, Seed: 0},
 	} {
 		pop, err := NovaPopulacao(p)
 		if err != nil {
@@ -162,7 +162,7 @@ func TestBordaParamsInvalidosExtras(t *testing.T) {
 		"elite=tamanho": func(p *Params) { p.Elite = p.Tamanho },
 		"tamanho 1":     func(p *Params) { p.Tamanho = 1; p.Elite = 0 },
 		"torneio 0":     func(p *Params) { p.Torneio = 0 },
-		"camadas curta": func(p *Params) { p.Camadas = []int{10} },
+		"camadas curta": func(p *Params) { p.Camadas = []int{NEntrada} },
 		"camadas ruim":  func(p *Params) { p.Camadas = []int{9, 12, 2} },
 		"camadas nil":   func(p *Params) { p.Camadas = nil },
 	}

@@ -1,7 +1,7 @@
 // Comando treino evolui as redes da IA numa pista, sem janela (D5), e grava o
 // melhor cérebro (contrato 1.4).
 //
-//	go run ./cmd/treino -pista pistas/oval.json -geracoes 30 -seed 1
+//	go run ./cmd/treino -pista pistas/oval.json -geracoes 100 -seed 1
 package main
 
 import (
@@ -22,11 +22,12 @@ func main() {
 	pista := flag.String("pista", "pistas/oval.json", "arquivo da pista")
 	geracoes := flag.Int("geracoes", 50, "quantas gerações avaliar")
 	seed := flag.Uint64("seed", 1, "seed do sorteio (mesma seed, mesmo resultado)")
-	saida := flag.String("saida", "", "arquivo do cérebro (padrão: cerebros/<nome da pista>.json)")
-	camadas := flag.String("camadas", juntar(ia.CamadasPadrao), "neurônios por camada, entrada 10 e saída 2 (ex.: 10,16,8,2)")
+	saida := flag.String("saida", "", "arquivo do cérebro (padrão: cerebros/<arquivo da pista sem extensão>.json)")
+	camadas := flag.String("camadas", juntar(ia.CamadasPadrao),
+		fmt.Sprintf("neurônios por camada, entrada %d e saída %d (ex.: %d,16,8,%d)", ia.NEntrada, ia.NSaida, ia.NEntrada, ia.NSaida))
 	populacao := flag.Int("populacao", ia.ParamsPadrao().Tamanho, "indivíduos por geração")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "uso: treino [-pista arq] [-geracoes n] [-seed n] [-saida arq] [-camadas 10,12,2] [-populacao n]")
+		fmt.Fprintf(flag.CommandLine.Output(), "uso: treino [-pista arq] [-geracoes n] [-seed n] [-saida arq] [-camadas %s] [-populacao n]\n", juntar(ia.CamadasPadrao))
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -61,11 +62,13 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		return err
 	}
 	if saida == "" {
-		saida = filepath.Join("cerebros", p.Nome+".json")
+		if saida, err = saidaPadrao(arqPista); err != nil {
+			return err
+		}
 	}
 
-	fmt.Printf("pista %s (%.0f px por volta), rede %v, %d indivíduos, seed %d, %.0f s cada\n",
-		p.Nome, p.Comprimento, forma, populacao, seed, ia.TempoMaxTreino)
+	fmt.Printf("pista %s (%.0f px por volta), rede %v, %d indivíduos, seed %d, até %.0f s cada (fim após %d ticks sem avançar)\n",
+		p.Nome, p.Comprimento, forma, populacao, seed, ia.TempoMaxTreino, ia.TicksParado)
 	var melhor *ia.Rede
 	primeiraVolta := -1
 	inicio := time.Now()
@@ -77,8 +80,8 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		}
 		r, nota := pop.Melhor()
 		b := res[pop.Ranking()[0]]
-		fmt.Printf("geração %3d  melhor %9.1f  distância %7.0f  voltas %2d  1ª volta %5s  %s  (%.1fs)\n",
-			pop.Geracao, nota, b.Distancia, b.Voltas, tempoVolta(b), fim(b), time.Since(ini).Seconds())
+		fmt.Printf("geração %3d  melhor %9.1f  distância %7.0f  voltas %2d  1ª volta %5s  batidas %4d  %s  (%.1fs)\n",
+			pop.Geracao, nota, b.Distancia, b.Voltas, tempoVolta(b), b.Batidas, fim(b), time.Since(ini).Seconds())
 		if b.Voltas >= 1 && primeiraVolta < 0 {
 			primeiraVolta = pop.Geracao
 		}
@@ -117,10 +120,22 @@ func tempoVolta(r ia.Resultado) string {
 }
 
 func fim(r ia.Resultado) string {
-	if r.Bateu {
-		return "bateu"
+	if r.Parou {
+		return "parou"
 	}
 	return "tempo"
+}
+
+// saidaPadrao devolve cerebros/<arquivo da pista sem extensão>.json (contrato
+// 1.4), o nome que o jogo procura. Só o nome do arquivo entra: o cérebro
+// nunca vai para fora de cerebros/.
+func saidaPadrao(arqPista string) (string, error) {
+	base := filepath.Base(arqPista)
+	nome := strings.TrimSuffix(base, filepath.Ext(base))
+	if nome == "" || nome == "." || nome == ".." || strings.ContainsAny(nome, `/\`) {
+		return "", fmt.Errorf("-pista %q: nome de arquivo não serve para o cérebro; use -saida", arqPista)
+	}
+	return filepath.Join("cerebros", nome+".json"), nil
 }
 
 func juntar(c []int) string {
@@ -131,7 +146,7 @@ func juntar(c []int) string {
 	return strings.Join(s, ",")
 }
 
-// separar lê "10,12,2"; a forma é validada pela população (entrada 10, saída 2).
+// separar lê "14,12,2"; a forma é validada pela população (entrada 14, saída 2).
 func separar(s string) ([]int, error) {
 	partes := strings.Split(s, ",")
 	c := make([]int, len(partes))

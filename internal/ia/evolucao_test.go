@@ -238,8 +238,8 @@ func TestCruzamentoUniforme(t *testing.T) {
 }
 
 func TestCruzarFormasDiferentes(t *testing.T) {
-	a, _ := NovaRede([]int{10, 12, 2}, nil)
-	b, _ := NovaRede([]int{10, 8, 2}, nil)
+	a, _ := NovaRede([]int{NEntrada, 12, 2}, nil)
+	b, _ := NovaRede([]int{NEntrada, 8, 2}, nil)
 	if _, err := Cruzar(a, b, rand.New(rand.NewPCG(1, 1))); !errors.Is(err, ErrParams) {
 		t.Fatalf("err = %v, esperava ErrParams", err)
 	}
@@ -320,7 +320,7 @@ func TestParamsInvalidos(t *testing.T) {
 
 func TestRedeMaisFundaEvolui(t *testing.T) {
 	p := ParamsPadrao()
-	p.Camadas = []int{10, 8, 6, 2}
+	p.Camadas = []int{NEntrada, 8, 6, 2}
 	p.Tamanho, p.Elite = 12, 2
 	pop, err := NovaPopulacao(p)
 	if err != nil {

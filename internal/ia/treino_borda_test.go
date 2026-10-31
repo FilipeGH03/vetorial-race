@@ -8,8 +8,8 @@ import (
 )
 
 // O que o treino mede tem de ser o que o jogo faz: a mesma rede, rodada numa
-// sim.Corrida com a Config do treino (BaterMata), dá a mesma distância e o
-// mesmo tick de morte que Treino.Rodar.
+// sim.Corrida com a Config do treino (a da corrida, D21) pelos mesmos ticks,
+// dá a mesma distância, voltas e batidas que Treino.Rodar.
 func TestRodarIgualACorridaDoJogo(t *testing.T) {
 	tr := treinoOval(t)
 	for seed := uint64(1); seed <= 4; seed++ {
@@ -27,13 +27,18 @@ func TestRodarIgualACorridaDoJogo(t *testing.T) {
 				t.Fatal(err)
 			}
 			cor.Carros[0] = sim.Largada(tr.Pista, 1)[0] // o treino larga sozinho (D18)
-			for n := 0; n < tr.MaxTicks && cor.Carros[0].Vivo && !cor.Terminada; n++ {
+			batidas := 0
+			for n := 0; n < want.Ticks && !cor.Terminada; n++ {
 				cor.Step()
+				if cor.Carros[0].Batido {
+					batidas++
+				}
 			}
 			c := cor.Carros[0]
-			if c.Progresso.Distancia != want.Distancia || c.Progresso.Voltas != want.Voltas || cor.Tick != want.Ticks {
-				t.Errorf("seed %d rede %d: corrida (dist %v, voltas %d, ticks %d), treino %+v",
-					seed, i, c.Progresso.Distancia, c.Progresso.Voltas, cor.Tick, want)
+			if c.Progresso.Distancia != want.Distancia || c.Progresso.Voltas != want.Voltas || cor.Tick != want.Ticks ||
+				batidas != want.Batidas || !c.Vivo {
+				t.Errorf("seed %d rede %d: corrida (dist %v, voltas %d, ticks %d, batidas %d, vivo %v), treino %+v",
+					seed, i, c.Progresso.Distancia, c.Progresso.Voltas, cor.Tick, batidas, c.Vivo, want)
 			}
 		}
 	}
@@ -124,15 +129,15 @@ func TestAvaliarPopulacaoMinima(t *testing.T) {
 	}
 }
 
-// Critério de prova da C3: o treino do oval precisa levar a rede a completar
-// 1 volta. Hoje isso não acontece (a IA para nas quinas, ~600-900 px de 1366).
-// Roda ~15 s: pulado com -short.
+// Critério de prova da C3: o treino do oval leva a rede a completar 1 volta
+// em até 100 gerações (seed 1, 50 indivíduos, 14-12-2: o comando da prova).
+// Pulado com -short.
 func TestTreinoOvalCompletaUmaVolta(t *testing.T) {
 	if testing.Short() {
 		t.Skip("treino longo")
 	}
 	tr := treinoOval(t)
-	params := ParamsPadrao() // seed 1, 50 indivíduos, 10-12-2: o comando da prova
+	params := ParamsPadrao() // seed 1, 50 indivíduos, 14-12-2: o comando da prova
 	pop, err := NovaPopulacao(params)
 	if err != nil {
 		t.Fatal(err)

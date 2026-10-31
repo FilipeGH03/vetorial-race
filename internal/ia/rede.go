@@ -15,11 +15,11 @@ import (
 const (
 	VersaoCerebro = 1
 	AtivacaoTanh  = "tanh"
-	NEntrada      = 10 // Entrada(): 7 sensores, Vel.X/VMax, Vel.Y/VMax, Modulo/VMax
+	NEntrada      = 14 // Entrada() (D20): 7 sensores, Vel.X/VMax, Vel.Y/VMax, Modulo/VMax, DirPista[0], DirPista[1]
 	NSaida        = 2  // s0 (aumentar/diminuir) e s1 (qual vetor)
 )
 
-// CamadasPadrao é a rede 10-12-2 do jogo.
+// CamadasPadrao é a rede 14-12-2 do jogo.
 var CamadasPadrao = []int{NEntrada, 12, NSaida}
 
 // ErrCerebroInvalido é devolvido por CarregarRede (e Salvar) quando o arquivo
@@ -29,7 +29,7 @@ var ErrCerebroInvalido = errors.New("cérebro inválido")
 // Rede é um perceptron de várias camadas: y_k = tanh(W_k·x + b_k).
 // Pesos[k] tem uma linha por neurônio de saída da camada k.
 type Rede struct {
-	Camadas []int       // neurônios por camada, entrada primeiro: {10, 12, 2}
+	Camadas []int       // neurônios por camada, entrada primeiro: {14, 12, 2}
 	Pesos   []Matriz    // Pesos[k] é L=Camadas[k+1] × C=Camadas[k]
 	Vieses  [][]float64 // Vieses[k] tem Camadas[k+1] valores
 
@@ -73,7 +73,7 @@ func vazia(camadas []int) *Rede {
 	return r
 }
 
-// validarCamadas confere o contrato: ao menos entrada e saída, entrada 10,
+// validarCamadas confere o contrato: ao menos entrada e saída, entrada 14,
 // saída 2, nenhuma camada vazia.
 func validarCamadas(camadas []int) error {
 	if len(camadas) < 2 {
@@ -223,7 +223,7 @@ func (r *Rede) Salvar(caminho string) error {
 
 // CarregarRede lê um cérebro (contrato 1.4). Erros de formato devolvem
 // ErrCerebroInvalido (errors.Is): versão ou ativação desconhecida, camadas[0]
-// != 10, camadas[last] != 2, ou pesos/vieses que não combinam com as camadas.
+// != 14 (D20), camadas[last] != 2, ou pesos/vieses que não combinam com as camadas.
 func CarregarRede(caminho string) (*Rede, error) {
 	dados, err := os.ReadFile(caminho)
 	if err != nil {

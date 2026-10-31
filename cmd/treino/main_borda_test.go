@@ -15,7 +15,7 @@ func TestRodarMesmaSeedMesmoArquivo(t *testing.T) {
 	var arqs [2][]byte
 	for i := range arqs {
 		s := filepath.Join(dir, "x"+string(rune('a'+i))+".json")
-		if err := rodar("../../pistas/oval.json", 3, 7, s, "10,8,2", 10); err != nil {
+		if err := rodar("../../pistas/oval.json", 3, 7, s, "14,8,2", 10); err != nil {
 			t.Fatal(err)
 		}
 		b, err := os.ReadFile(s)
@@ -29,30 +29,61 @@ func TestRodarMesmaSeedMesmoArquivo(t *testing.T) {
 	}
 }
 
-// Sem -saida o cérebro vai para cerebros/<nome da pista>.json, a partir da
-// pasta onde o comando roda.
+// Sem -saida o cérebro vai para cerebros/<arquivo da pista sem extensão>.json
+// (contrato 1.4), a partir da pasta onde o comando roda, mesmo quando o
+// "nome" dentro do JSON da pista é outro.
 func TestRodarSaidaPadrao(t *testing.T) {
-	pista, err := filepath.Abs("../../pistas/oval.json")
+	dados, err := os.ReadFile("../../pistas/oval.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Chdir(t.TempDir())
-	if err := rodar(pista, 1, 1, "", "10,6,2", 6); err != nil {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile("minha-pista.json", dados, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r, err := ia.CarregarRede(filepath.Join("cerebros", "oval.json"))
+	if err := rodar("minha-pista.json", 1, 1, "", "14,6,2", 6); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ia.CarregarRede(filepath.Join("cerebros", "minha-pista.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.Pista != "oval" {
 		t.Errorf("pista = %q", r.Pista)
 	}
+	if _, err := os.Stat(filepath.Join("cerebros", "oval.json")); err == nil {
+		t.Error("gravou pelo nome de dentro da pista, não pelo nome do arquivo")
+	}
+}
+
+// A saída padrão usa só o nome do arquivo: '/' ou '..' no caminho da pista
+// nunca levam o cérebro para fora de cerebros/.
+func TestSaidaPadraoFicaEmCerebros(t *testing.T) {
+	casos := map[string]string{
+		"pistas/oval.json":        filepath.Join("cerebros", "oval.json"),
+		"../../pistas/oval.json":  filepath.Join("cerebros", "oval.json"),
+		"a/../../b/curva.json":    filepath.Join("cerebros", "curva.json"),
+		"pistas/sem-extensao":     filepath.Join("cerebros", "sem-extensao.json"),
+		"pistas/dois.pontos.json": filepath.Join("cerebros", "dois.pontos.json"),
+	}
+	for pista, want := range casos {
+		got, err := saidaPadrao(pista)
+		if err != nil || got != want {
+			t.Errorf("saidaPadrao(%q) = %q, %v; esperava %q", pista, got, err, want)
+		}
+	}
+	for _, pista := range []string{"", ".json", "pistas/.json", "..", "pistas/..", "pistas/...json"} {
+		if got, err := saidaPadrao(pista); err == nil {
+			t.Errorf("saidaPadrao(%q) = %q, deveria dar erro", pista, got)
+		}
+	}
 }
 
 // O cérebro gravado guarda a melhor nota e ela se reproduz no jogo.
 func TestRodarNotaGravadaReproduz(t *testing.T) {
 	saida := filepath.Join(t.TempDir(), "o.json")
-	if err := rodar("../../pistas/oval.json", 3, 1, saida, "10,6,2", 8); err != nil {
+	if err := rodar("../../pistas/oval.json", 3, 1, saida, "14,6,2", 8); err != nil {
 		t.Fatal(err)
 	}
 	r, err := ia.CarregarRede(saida)
@@ -86,7 +117,7 @@ func TestSepararInvalido(t *testing.T) {
 // Camadas mal formadas (saída 3, só 1 camada, neurônio 0) param antes de treinar.
 func TestRodarCamadasInvalidas(t *testing.T) {
 	saida := filepath.Join(t.TempDir(), "x.json")
-	for _, c := range []string{"10,12,3", "10", "10,0,2", "10,-4,2"} {
+	for _, c := range []string{"14,12,3", "14", "14,0,2", "14,-4,2", "10,12,2"} {
 		if err := rodar("../../pistas/oval.json", 1, 1, saida, c, 8); err == nil {
 			t.Errorf("camadas %q deveriam dar erro", c)
 		}

@@ -37,7 +37,7 @@ func TestForwardSaidaSempreEmMenos1Mais1(t *testing.T) {
 	rng := rand.New(rand.NewPCG(9, 9))
 	r, _ := NovaRede(CamadasPadrao, rng)
 	for n := 0; n < 500; n++ {
-		x := make([]float64, 10)
+		x := make([]float64, NEntrada)
 		for i := range x {
 			x[i] = rng.Float64()*2 - 1
 		}
@@ -54,7 +54,7 @@ func TestForwardSaidaSempreEmMenos1Mais1(t *testing.T) {
 }
 
 func TestSalvarCarregarMetadadosEProfundidade(t *testing.T) {
-	r, err := NovaRede([]int{10, 7, 5, 2}, rand.New(rand.NewPCG(5, 6)))
+	r, err := NovaRede([]int{NEntrada, 7, 5, 2}, rand.New(rand.NewPCG(5, 6)))
 	if err != nil {
 		t.Fatal(err)
 	}

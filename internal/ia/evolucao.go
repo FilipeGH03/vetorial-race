@@ -19,7 +19,7 @@ var ErrParams = errors.New("parâmetros de evolução inválidos")
 
 // Params são os ajustes da evolução.
 type Params struct {
-	Camadas     []int   // forma das redes (padrão 10-12-2)
+	Camadas     []int   // forma das redes (padrão 14-12-2)
 	Tamanho     int     // indivíduos por geração (padrão 50)
 	Elite       int     // os N melhores passam iguais (padrão 5)
 	Torneio     int     // candidatos sorteados por torneio (padrão 3)

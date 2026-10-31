@@ -8,7 +8,7 @@ import (
 )
 
 // Entrada de uma Leitura real do oval (a que o treino e o jogo produzem):
-// todos os 10 valores ficam em [-1, 1] e a ordem bate com o contrato 1.3.
+// todos os 14 valores ficam em [-1, 1] e a ordem bate com o contrato 1.3.
 func TestEntradaDeLeituraRealFicaEmMenos1a1(t *testing.T) {
 	tr := treinoOval(t)
 	c := tr.largada
@@ -27,6 +27,10 @@ func TestEntradaDeLeituraRealFicaEmMenos1a1(t *testing.T) {
 		if x[7] != l.Vel.X/tr.Cfg.VMax || x[8] != l.Vel.Y/tr.Cfg.VMax || x[9] != l.Modulo/tr.Cfg.VMax {
 			t.Fatalf("tick %d: velocidades fora de ordem: %v", i, x[7:])
 		}
+		d := l.DirPista
+		if x[10] != d[0].X || x[11] != d[0].Y || x[12] != d[1].X || x[13] != d[1].Y {
+			t.Fatalf("tick %d: DirPista fora de ordem: %v, Leitura %v", i, x[10:], d)
+		}
 		c.Avancar(ctl.Decidir(l), tr.Pista, tr.Cfg)
 	}
 }
@@ -34,9 +38,12 @@ func TestEntradaDeLeituraRealFicaEmMenos1a1(t *testing.T) {
 // Velocidade máxima e vetor zero nos extremos.
 func TestEntradaExtremos(t *testing.T) {
 	vmax := sim.ConfigPadrao().VMax
-	x := Entrada(sim.Leitura{Vel: sim.Vec2{X: -vmax, Y: 0}, Modulo: vmax})
+	x := Entrada(sim.Leitura{Vel: sim.Vec2{X: -vmax, Y: 0}, Modulo: vmax, DirPista: [2]sim.Vec2{{X: -1}, {Y: 1}}})
 	if x[7] != -1 || x[8] != 0 || x[9] != 1 {
-		t.Errorf("Vel = (-VMax, 0): %v", x[7:])
+		t.Errorf("Vel = (-VMax, 0): %v", x[7:10])
+	}
+	if x[10] != -1 || x[11] != 0 || x[12] != 0 || x[13] != 1 {
+		t.Errorf("DirPista = (-1, 0), (0, 1): %v", x[10:])
 	}
 	for _, v := range Entrada(sim.Leitura{}) {
 		if v != 0 {
@@ -45,8 +52,9 @@ func TestEntradaExtremos(t *testing.T) {
 	}
 }
 
-// Cada Decidir devolve exatamente uma Acao com Sinal +1/-1 (contrato 1.1: no
-// máximo uma por eixo) em uma corrida de verdade, sem BaterMata (jogo livre).
+// Cada Decidir devolve no máximo uma Acao, sempre ativa e com Sinal +1/-1
+// (contrato 1.1; zona morta = Controle{}, contrato 1.3), em uma corrida de
+// verdade, sem BaterMata (jogo livre).
 func TestControladorNaCorridaDoJogo(t *testing.T) {
 	p := pistaOval(t)
 	r, err := NovaRede(CamadasPadrao, nil)
@@ -81,15 +89,15 @@ type espiao struct {
 func (e *espiao) Decidir(l sim.Leitura) sim.Controle {
 	e.chamadas++
 	c := e.Controlador.Decidir(l)
-	if len(c.Acoes) != 1 {
-		e.ruim = "Controle sem exatamente uma Acao"
+	if len(c.Acoes) > 1 {
+		e.ruim = "Controle com mais de uma Acao"
 	}
 	for _, a := range c.Acoes {
-		if a.Ativa && a.Sinal != 1 && a.Sinal != -1 {
-			e.ruim = "Sinal fora de +1/-1"
+		if !a.Ativa {
+			e.ruim = "Acao inativa no Controle (zona morta é Controle{})"
 		}
-		if !a.Ativa && (a.Sinal != 0 || a.Eixo != 0) {
-			e.ruim = "Acao inativa com lixo"
+		if a.Sinal != 1 && a.Sinal != -1 {
+			e.ruim = "Sinal fora de +1/-1"
 		}
 	}
 	return c
