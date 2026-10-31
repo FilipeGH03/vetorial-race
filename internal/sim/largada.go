@@ -22,6 +22,12 @@ const (
 	passoFaixaLargada = 0.5
 	// folgaLinhaLargada é a menor distância (px) de um carro à linha de largada.
 	folgaLinhaLargada = 1.0
+	// cosAlinhamentoLargada é o cosseno do maior desvio (45°) entre a direção da
+	// fila e a do trecho da linha central de cada ponto dela (A9).
+	cosAlinhamentoLargada = 0.70710678118654752
+	// tolTrechoMaisPerto (px) é a diferença de distância até a qual dois trechos
+	// da linha central contam como "os mais perto" (empate na quina).
+	tolTrechoMaisPerto = 0.01
 )
 
 // Largada devolve n carros (NovoCarro, IDs 0 a n-1) parados antes da linha de
@@ -38,6 +44,10 @@ const (
 // largura da fila da frente (o comprimento do carro com folga). Na fila, os
 // carros se espalham por igual, da parede esquerda para a direita, na ordem dos
 // IDs.
+//
+// A fila só usa pontos em que o trecho da linha central mais perto aponta a até
+// 45° da direção da fila (numa quina ela é cortada onde a pista vira), e cada
+// carro aponta na direção da pista onde está (A9).
 //
 // Como todos nascem atrás da linha com Proximo = 0, a 1ª travessia da largada
 // (andando para a frente) abre a volta 1 e a Distancia passa a contar. O
@@ -63,7 +73,7 @@ func Largada(p *Pista, n int) []Carro {
 		for j := 0; j < k; j++ {
 			o := f.esq - f.largura()*(float64(j)+0.5)/float64(k)
 			c := NovoCarro(len(carros), f.base.Add(f.lateral.Scale(o)))
-			c.DefinirAngulo(f.frente.Angle())
+			c.DefinirAngulo(anguloDaPista(p, c.Pos, f.frente))
 			carros = append(carros, c)
 		}
 	}
@@ -144,8 +154,10 @@ func filaUnica(p *Pista, recuo float64) faixa {
 // na perpendicular de frente. Um ponto da faixa está livre se fica a
 // FolgaLargada das paredes, não encosta na linha de largada, está no trecho da
 // pista de base (o trecho da linha central mais perto dele é vizinho do de
-// base) e, perto da largada, atrás dela. ok = false se o próprio base não está
-// livre.
+// base), perto da largada, atrás dela e, por fim, o trecho da linha central
+// mais perto dele aponta a até 45° de frente (A9): numa quina a faixa é cortada
+// onde a pista vira, para ninguém nascer apontado para a parede. ok = false se o
+// próprio base não está livre.
 func faixaEm(p *Pista, base, frente Vec2) (faixa, bool) {
 	f := faixa{base: base, frente: frente, lateral: Vec2{-frente.Y, frente.X}}
 	cp0 := p.Checkpoints[0]
@@ -167,6 +179,9 @@ func faixaEm(p *Pista, base, frente Vec2) (faixa, bool) {
 			if distanciaPontoSegmento(q, s.A, s.B) < FolgaLargada {
 				return false
 			}
+		}
+		if !trechoAlinhado(p, centro, q, frente) {
+			return false
 		}
 		d := maisPerto(p, centro, q) - segBase
 		d = ((d % n) + n) % n
@@ -240,4 +255,41 @@ func maisPerto(p *Pista, idx []int, q Vec2) int {
 		}
 	}
 	return melhor
+}
+
+// trechoAlinhado diz se algum dos trechos da linha central em idx mais perto de
+// q (empatando na quina) aponta a até 45° de frente.
+func trechoAlinhado(p *Pista, idx []int, q, frente Vec2) bool {
+	n := len(p.Centro)
+	menor := math.Inf(1)
+	for _, i := range idx {
+		menor = min(menor, distanciaPontoSegmento(q, p.Centro[i], p.Centro[(i+1)%n]))
+	}
+	for _, i := range idx {
+		a, b := p.Centro[i], p.Centro[(i+1)%n]
+		if distanciaPontoSegmento(q, a, b) <= menor+tolTrechoMaisPerto && b.Sub(a).Norm().Dot(frente) >= cosAlinhamentoLargada {
+			return true
+		}
+	}
+	return false
+}
+
+// anguloDaPista é o ângulo da direção da pista onde q está: a do trecho da
+// linha central mais perto de q que fica mais alinhado com frente (a direção da
+// fila). Sem trecho perto, o próprio ângulo de frente.
+func anguloDaPista(p *Pista, q, frente Vec2) float64 {
+	n := len(p.Centro)
+	idx := trechosCentroPerto(p, q, 2*p.Largura)
+	menor := math.Inf(1)
+	for _, i := range idx {
+		menor = min(menor, distanciaPontoSegmento(q, p.Centro[i], p.Centro[(i+1)%n]))
+	}
+	melhor, cos := frente, -2.0
+	for _, i := range idx {
+		a, b := p.Centro[i], p.Centro[(i+1)%n]
+		if d := b.Sub(a).Norm(); distanciaPontoSegmento(q, a, b) <= menor+tolTrechoMaisPerto && d.Dot(frente) > cos {
+			melhor, cos = d, d.Dot(frente)
+		}
+	}
+	return melhor.Angle()
 }
