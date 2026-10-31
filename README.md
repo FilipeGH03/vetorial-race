@@ -34,6 +34,18 @@ arquivo, `L` recarrega, `C` ou `Esc` limpam. Se o arquivo já existe, ele é abe
 Pista inválida (por exemplo um oito) mostra o erro e marca o cruzamento; a pista só cabe em 1280x720.
 Depois: `go run ./cmd/jogo -pista pistas/minha.json`.
 
+## Treino da IA
+
+```
+go run ./cmd/treino -pista pistas/oval.json -geracoes 30 -seed 1
+```
+
+Roda a neuroevolução sem janela: 50 redes por geração, cada uma dirige sozinha da largada até
+bater ou até 60 s (bater mata), e a nota é a distância percorrida mais bônus por volta e por volta
+rápida. Imprime a melhor nota de cada geração e grava a melhor rede em `cerebros/<pista>.json`
+(ou em `-saida arq`). A mesma seed dá sempre o mesmo resultado. Outras opções: `-camadas 10,16,2`
+(entrada 10 e saída 2) e `-populacao n`.
+
 ## Verificar
 
 ```
