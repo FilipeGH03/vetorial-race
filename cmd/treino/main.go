@@ -1,7 +1,7 @@
 // Comando treino evolui as redes da IA numa pista, sem janela (D5), e grava o
 // melhor cérebro (contrato 1.4).
 //
-//	go run ./cmd/treino -pista pistas/oval.json -geracoes 100 -seed 1
+//	go run ./cmd/treino -pista pistas/oval.json -seed 1
 package main
 
 import (
@@ -20,7 +20,7 @@ import (
 func main() {
 	log.SetFlags(0)
 	pista := flag.String("pista", "pistas/oval.json", "arquivo da pista")
-	geracoes := flag.Int("geracoes", 50, "quantas gerações avaliar")
+	geracoes := flag.Int("geracoes", 300, "quantas gerações avaliar")
 	seed := flag.Uint64("seed", 1, "seed do sorteio (mesma seed, mesmo resultado)")
 	saida := flag.String("saida", "", "arquivo do cérebro (padrão: cerebros/<arquivo da pista sem extensão>.json)")
 	camadas := flag.String("camadas", juntar(ia.CamadasPadrao),
@@ -67,10 +67,12 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		}
 	}
 
-	fmt.Printf("pista %s (%.0f px por volta), rede %v, %d indivíduos, seed %d, até %.0f s cada (fim após %d ticks sem avançar)\n",
-		p.Nome, p.Comprimento, forma, populacao, seed, ia.TempoMaxTreino, ia.TicksParado)
+	fmt.Printf("pista %s (%.0f px por volta), rede %v, %d indivíduos, seed %d, %d largadas de até %.0f s cada (fim após %d ticks sem avançar)\n",
+		p.Nome, p.Comprimento, forma, populacao, seed, ia.NLargadas, ia.TempoMaxTreino, ia.TicksParado)
 	var melhor *ia.Rede
-	primeiraVolta := -1
+	// primeiraVolta: 1ª geração em que algum indivíduo completou a volta de
+	// alguma largada; todasLargadas: 1ª em que o melhor a completou de todas.
+	primeiraVolta, todasLargadas := -1, -1
 	inicio := time.Now()
 	for g := 0; ; g++ {
 		ini := time.Now()
@@ -80,10 +82,14 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		}
 		r, nota := pop.Melhor()
 		b := res[pop.Ranking()[0]]
-		fmt.Printf("geração %3d  melhor %9.1f  distância %7.0f  voltas %2d  1ª volta %5s  batidas %4d  %s  (%.1fs)\n",
-			pop.Geracao, nota, b.Distancia, b.Voltas, tempoVolta(b), b.Batidas, fim(b), time.Since(ini).Seconds())
-		if b.Voltas >= 1 && primeiraVolta < 0 {
+		fmt.Printf("geração %3d  melhor %9.1f  distância média %7.0f  voltas (mín) %2d  com volta %d/%d  1ª volta (pior) %5s  batidas %4d  paradas %d  (%.1fs)\n",
+			pop.Geracao, nota, distanciaMedia(b), b.VoltasMin(), b.ComVolta(), ia.NLargadas, tempoVolta(b), batidas(b), paradas(b),
+			time.Since(ini).Seconds())
+		if primeiraVolta < 0 && algumaVolta(res) {
 			primeiraVolta = pop.Geracao
+		}
+		if todasLargadas < 0 && b.VoltasMin() >= 1 {
+			todasLargadas = pop.Geracao
 		}
 		if melhor == nil || nota > melhor.Pontuacao {
 			melhor = r.Copia()
@@ -107,23 +113,64 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 	} else {
 		fmt.Println("nenhum indivíduo completou uma volta")
 	}
+	if todasLargadas >= 0 {
+		fmt.Printf("1ª volta completa das %d largadas na geração %d\n", ia.NLargadas, todasLargadas)
+	} else {
+		fmt.Printf("nenhum indivíduo completou a volta das %d largadas\n", ia.NLargadas)
+	}
 	fmt.Printf("melhor: geração %d, pontuação %.1f -> %s (%.1fs no total)\n",
 		melhor.Geracao, melhor.Pontuacao, saida, time.Since(inicio).Seconds())
 	return nil
 }
 
-func tempoVolta(r ia.Resultado) string {
-	if r.Voltas < 1 {
+// tempoVolta é o tempo da 1ª volta na largada mais lenta; "-" se alguma
+// largada não completou a volta.
+func tempoVolta(a ia.Avaliacao) string {
+	if a.VoltasMin() < 1 {
 		return "-"
 	}
-	return fmt.Sprintf("%.1fs", r.TempoVolta)
+	pior := 0.0
+	for _, r := range a.Largadas {
+		pior = max(pior, r.TempoVolta)
+	}
+	return fmt.Sprintf("%.1fs", pior)
 }
 
-func fim(r ia.Resultado) string {
-	if r.Parou {
-		return "parou"
+func distanciaMedia(a ia.Avaliacao) float64 {
+	s := 0.0
+	for _, r := range a.Largadas {
+		s += r.Distancia
 	}
-	return "tempo"
+	return s / ia.NLargadas
+}
+
+func batidas(a ia.Avaliacao) int {
+	n := 0
+	for _, r := range a.Largadas {
+		n += r.Batidas
+	}
+	return n
+}
+
+// paradas conta as largadas encerradas por ficar TicksParado ticks sem avançar.
+func paradas(a ia.Avaliacao) int {
+	n := 0
+	for _, r := range a.Largadas {
+		if r.Parou {
+			n++
+		}
+	}
+	return n
+}
+
+// algumaVolta diz se algum indivíduo completou a volta de alguma largada.
+func algumaVolta(res []ia.Avaliacao) bool {
+	for _, a := range res {
+		if a.ComVolta() > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // saidaPadrao devolve cerebros/<arquivo da pista sem extensão>.json (contrato

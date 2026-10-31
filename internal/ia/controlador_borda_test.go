@@ -11,7 +11,7 @@ import (
 // todos os 14 valores ficam em [-1, 1] e a ordem bate com o contrato 1.3.
 func TestEntradaDeLeituraRealFicaEmMenos1a1(t *testing.T) {
 	tr := treinoOval(t)
-	c := tr.largada
+	c := tr.Largada(0)
 	ctl := NovoControlador(redeFixa(2, 2, 0))
 	for i := 0; i < 300 && c.Vivo; i++ {
 		l := sim.Ler(&c, tr.Pista, tr.Cfg)

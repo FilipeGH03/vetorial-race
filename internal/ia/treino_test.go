@@ -35,9 +35,15 @@ func TestNovoTreinoConfigELargada(t *testing.T) {
 	if tr.MaxTicks != 3600 {
 		t.Errorf("MaxTicks = %d, esperava 60 s = 3600", tr.MaxTicks)
 	}
-	l := sim.Largada(tr.Pista, 1)[0]
-	if tr.largada.Pos != l.Pos || tr.largada.Angulo() != l.Angulo() || !tr.largada.Vivo {
-		t.Errorf("largada = %+v, esperava sim.Largada(p, 1)[0] = %+v", tr.largada, l)
+	ls := sim.Largada(tr.Pista, NLargadas) // D22: as 6 posições, calculadas uma vez
+	for k, l := range ls {
+		c := tr.Largada(k)
+		if c.Pos != l.Pos || c.Angulo() != l.Angulo() || !c.Vivo || c.Vel != (sim.Vec2{}) {
+			t.Errorf("largada %d = %+v, esperava sim.Largada(p, %d)[%d] = %+v", k, c, NLargadas, k, l)
+		}
+	}
+	if tr.Largada(0).Pos == tr.Largada(NLargadas-1).Pos {
+		t.Error("largadas repetidas")
 	}
 }
 
@@ -76,32 +82,76 @@ func TestPontuacao(t *testing.T) {
 // TicksParado ticks (D21), sem batida e com nota 0.
 func TestRodarParadoEncerraEm60Ticks(t *testing.T) {
 	tr := treinoOval(t)
-	res := tr.Rodar(redeFixa(0, 0, 0)) // saída (0, 0): zona morta sempre
+	a := tr.Rodar(redeFixa(0, 0, 0)) // saída (0, 0): zona morta sempre
 	want := Resultado{Ticks: TicksParado, Parou: true}
-	if res != want {
-		t.Fatalf("rede parada: %+v, esperava %+v", res, want)
+	for k, res := range a.Largadas {
+		if res != want {
+			t.Fatalf("rede parada, largada %d: %+v, esperava %+v", k, res, want)
+		}
+	}
+	if a.Pontuacao != 0 || a.VoltasMin() != 0 || a.ComVolta() != 0 {
+		t.Fatalf("rede parada: %+v", a)
 	}
 }
 
-// Sempre aumenta x: cruza a largada, segue a reta e bate na quina. Não morre
-// (D21): fica empurrando a parede, cada tick conta uma batida, e é encerrada
-// TicksParado ticks depois de a Distancia parar de subir.
+// D22: a nota é a média das notas das NLargadas largadas, e cada largada é a
+// corrida de RodarDe daquela posição.
+func TestRodarNotaEAMediaDasLargadas(t *testing.T) {
+	tr := treinoOval(t)
+	r, _ := NovaRede(CamadasPadrao, nil)
+	a := tr.Rodar(r)
+	soma := 0.0
+	for k := range NLargadas {
+		if got := tr.RodarDe(r, k); got != a.Largadas[k] {
+			t.Errorf("largada %d: %+v, RodarDe dá %+v", k, a.Largadas[k], got)
+		}
+		soma += a.Largadas[k].Pontuacao
+	}
+	if a.Pontuacao != soma/NLargadas {
+		t.Errorf("nota %v, média das largadas %v", a.Pontuacao, soma/NLargadas)
+	}
+}
+
+func TestAvaliacaoVoltas(t *testing.T) {
+	var a Avaliacao
+	for k := range a.Largadas {
+		a.Largadas[k].Voltas = 2
+	}
+	if a.VoltasMin() != 2 || a.ComVolta() != NLargadas {
+		t.Fatalf("todas com 2 voltas: min %d, com volta %d", a.VoltasMin(), a.ComVolta())
+	}
+	a.Largadas[3].Voltas = 0
+	if a.VoltasMin() != 0 || a.ComVolta() != NLargadas-1 {
+		t.Fatalf("uma sem volta: min %d, com volta %d", a.VoltasMin(), a.ComVolta())
+	}
+}
+
+// Sempre aumenta x: da 1ª fila cruza a largada, segue a reta e bate na quina
+// (das de trás pode bater antes da linha). Não morre (D21): fica empurrando a
+// parede, cada tick conta uma batida, e é encerrada TicksParado ticks depois
+// de a Distancia parar de subir.
 func TestRodarRetoBateEParaSemMorrer(t *testing.T) {
 	tr := treinoOval(t)
-	res := tr.Rodar(redeFixa(2, 2, 0))
-	if !res.Parou || res.Ticks >= tr.MaxTicks || res.Batidas == 0 {
-		t.Fatalf("deveria bater e ser encerrada por ficar parada: %+v", res)
+	a := tr.Rodar(redeFixa(2, 2, 0))
+	for k, res := range a.Largadas {
+		if !res.Parou || res.Ticks >= tr.MaxTicks || res.Batidas == 0 {
+			t.Fatalf("largada %d: deveria bater e ser encerrada por ficar parada: %+v", k, res)
+		}
+		if res.Voltas != 0 || res.Pontuacao != res.Distancia-PenaBatida*float64(res.Batidas) {
+			t.Fatalf("largada %d: resultado %+v", k, res)
+		}
 	}
-	if res.Distancia <= 0 || res.Voltas != 0 || res.Pontuacao != res.Distancia-PenaBatida*float64(res.Batidas) {
-		t.Fatalf("resultado %+v", res)
+	if a.Largadas[0].Distancia <= 0 {
+		t.Fatalf("da 1ª largada deveria cruzar a linha: %+v", a.Largadas[0])
 	}
 }
 
 // Sempre diminui x: nunca cruza a largada, bate atrás dela e só perde pontos.
 func TestRodarDeReNaoPontua(t *testing.T) {
-	res := treinoOval(t).Rodar(redeFixa(-2, 2, 0))
-	if !res.Parou || res.Distancia != 0 || res.Batidas == 0 || res.Pontuacao != -PenaBatida*float64(res.Batidas) {
-		t.Fatalf("de ré: %+v", res)
+	for k, res := range treinoOval(t).Rodar(redeFixa(-2, 2, 0)).Largadas {
+		if !res.Parou || res.Distancia != 0 || res.Batidas == 0 || res.Pontuacao != -PenaBatida*float64(res.Batidas) {
+			t.Fatalf("de ré, largada %d: %+v", k, res)
+		}
 	}
 }
 
@@ -110,7 +160,7 @@ func TestRodarDeReNaoPontua(t *testing.T) {
 func TestTreinoBaterNaoMata(t *testing.T) {
 	tr := treinoOval(t)
 	ctl := &alterna{}
-	c := tr.largada
+	c := tr.Largada(0)
 	bateu, subiuDepois := false, false
 	var dist float64
 	for n := 0; n < 600; n++ {
