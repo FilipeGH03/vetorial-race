@@ -9,7 +9,7 @@ import (
 	"vetorial-race/internal/sim"
 )
 
-// Treino visual (R14): a mesma neuroevolução de cmd/treino (D5, D21, D22), só
+// Treino visual (R14): a mesma neuroevolução de cmd/treino (D5, D22, D23), só
 // que a população inteira dirige ao mesmo tempo na tela. Cada geração tem
 // ia.NLargadas rodadas; na rodada k os 50 indivíduos largam de Treino.Largada(k)
 // e dirigem como em ia.Treino.RodarDe (mesmo tick, mesmo fim por tempo ou por
@@ -38,8 +38,7 @@ type Individuo struct {
 	Fim   bool         // encerrado (tempo, ou TicksParado sem avançar)
 
 	ctl    *ia.Controlador
-	ultima float64 // maior Distancia até agora
-	parado int     // ticks seguidos sem a Distancia aumentar
+	avanco ia.Avanco // fim por ficar TicksParado sem avançar (D23)
 }
 
 // TreinoVisual é o estado do treino na tela, sem janela (testável).
@@ -115,7 +114,7 @@ func (v *TreinoVisual) iniciarLargada(k int) {
 	v.Individuos = make([]Individuo, len(v.Pop.Redes))
 	for i, r := range v.Pop.Redes {
 		c := v.Treino.Largada(k)
-		v.Individuos[i] = Individuo{Carro: c, ctl: ia.NovoControlador(r), ultima: c.Progresso.Distancia}
+		v.Individuos[i] = Individuo{Carro: c, ctl: ia.NovoControlador(r)}
 	}
 }
 
@@ -151,6 +150,7 @@ func (v *TreinoVisual) Passo() {
 func (v *TreinoVisual) passoIndividuo(ind *Individuo) {
 	t := v.Treino
 	c, res := &ind.Carro, &ind.Res
+	antes := c.Pos
 	c.Avancar(ind.ctl.Decidir(sim.Ler(c, t.Pista, t.Cfg)), t.Pista, t.Cfg)
 	res.Ticks++
 	if c.Batido {
@@ -159,14 +159,9 @@ func (v *TreinoVisual) passoIndividuo(ind *Individuo) {
 	if res.TempoVolta == 0 && c.Progresso.Voltas >= 1 {
 		res.TempoVolta = float64(res.Ticks) * t.Cfg.DT
 	}
-	if c.Progresso.Distancia > ind.ultima {
-		ind.ultima, ind.parado = c.Progresso.Distancia, 0
-	} else {
-		ind.parado++
-		if ind.parado >= ia.TicksParado {
-			res.Parou = true
-			ind.Fim = true
-		}
+	if ind.avanco.Tick(t.Pista, antes, c.Pos) {
+		res.Parou = true
+		ind.Fim = true
 	}
 	if res.Ticks >= t.MaxTicks || !c.Vivo {
 		ind.Fim = true

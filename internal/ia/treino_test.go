@@ -28,7 +28,7 @@ func treinoOval(t *testing.T) *Treino {
 
 func TestNovoTreinoConfigELargada(t *testing.T) {
 	tr := treinoOval(t)
-	want := sim.ConfigPadrao() // D21: BaterMata = false, como na corrida
+	want := sim.ConfigPadrao() // D23: BaterMata = false, como na corrida
 	if tr.Cfg != want || tr.Cfg.BaterMata {
 		t.Errorf("Cfg = %+v, esperava ConfigPadrao sem BaterMata: %+v", tr.Cfg, want)
 	}
@@ -69,7 +69,7 @@ func TestPontuacao(t *testing.T) {
 	if got := Pontuacao(0, 0, 0, 0); got != 0 {
 		t.Errorf("parado: %v", got)
 	}
-	// D21: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 5·batidas.
+	// D23: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 5·batidas.
 	if got := Pontuacao(2000, 1, 40, 3); got != 2000+1000+20*20-5*3 {
 		t.Errorf("1 volta em 40 s com 3 batidas: %v", got)
 	}
@@ -79,7 +79,7 @@ func TestPontuacao(t *testing.T) {
 }
 
 // Rede parada (zona morta sempre) não avança: é encerrada depois de
-// TicksParado ticks (D21), sem batida e com nota 0.
+// TicksParado ticks (D23), sem batida e com nota 0.
 func TestRodarParadoEncerraEm60Ticks(t *testing.T) {
 	tr := treinoOval(t)
 	a := tr.Rodar(redeFixa(0, 0, 0)) // saída (0, 0): zona morta sempre
@@ -127,9 +127,9 @@ func TestAvaliacaoVoltas(t *testing.T) {
 }
 
 // Sempre aumenta x: da 1ª fila cruza a largada, segue a reta e bate na quina
-// (das de trás pode bater antes da linha). Não morre (D21): fica empurrando a
+// (das de trás pode bater antes da linha). Não morre (D23): fica empurrando a
 // parede, cada tick conta uma batida, e é encerrada TicksParado ticks depois
-// de a Distancia parar de subir.
+// de parar de avançar na linha central.
 func TestRodarRetoBateEParaSemMorrer(t *testing.T) {
 	tr := treinoOval(t)
 	a := tr.Rodar(redeFixa(2, 2, 0))
@@ -157,7 +157,64 @@ func TestRodarDeReNaoPontua(t *testing.T) {
 	}
 }
 
-// Com a Config do treino bater não mata (D21): quem bate e sai da parede segue
+// D23: o "1 s sem avançar" é medido por sim.AvancoNaLinha, que conta também
+// atrás da largada (onde a Distancia ainda é 0). Um carro 190 px atrás da linha
+// acelerando em +x leva mais de 1 s para cruzá-la (150 px no 1º segundo): não
+// pode ser encerrado antes, e chega a pontuar.
+func TestRodarAvancoAtrasDaLargadaNaoEncerra(t *testing.T) {
+	tr := treinoOval(t)
+	c := sim.NovoCarro(0, sim.Vec2{X: 210, Y: 300}) // reta de baixo; a largada é x = 400
+	tr.largadas[0] = c
+	res := tr.RodarDe(redeFixa(2, 2, 0), 0)
+	if res.Ticks <= TicksParado || res.Distancia <= 0 {
+		t.Fatalf("avançando atrás da largada foi encerrado: %+v", res)
+	}
+	if !res.Parou || res.Batidas == 0 {
+		t.Fatalf("deveria seguir até bater na quina e parar lá: %+v", res)
+	}
+}
+
+// D23: ir e voltar no mesmo lugar não é avançar. De ré o carro nunca passa do
+// ponto de largada: é encerrado em exatamente TicksParado ticks.
+func TestRodarDeReEncerraEmTicksParado(t *testing.T) {
+	for k, res := range treinoOval(t).Rodar(redeFixa(-2, 2, 0)).Largadas {
+		if res.Ticks != TicksParado || !res.Parou {
+			t.Fatalf("de ré, largada %d: %+v, esperava %d ticks e Parou", k, res, TicksParado)
+		}
+	}
+}
+
+// Avanco (D23): andar para a frente zera a contagem; voltar e ir de novo até
+// onde já tinha chegado não é avançar; ficar parado conta; o fim vem no
+// TicksParado-ésimo tick seguido sem avançar.
+func TestAvancoIrEVoltarNaoConta(t *testing.T) {
+	p := pistaOval(t)
+	a, b, c := sim.Vec2{X: 300, Y: 300}, sim.Vec2{X: 305, Y: 300}, sim.Vec2{X: 310, Y: 300}
+	var av Avanco
+	if av.Tick(p, a, b) || av.Tick(p, b, c) {
+		t.Fatal("andando para a frente foi encerrado")
+	}
+	for n := 1; n <= TicksParado; n++ {
+		de, ate := c, b // vai e volta entre b e c, sem passar de c
+		if n%2 == 0 {
+			de, ate = b, c
+		}
+		if got := av.Tick(p, de, ate); got != (n == TicksParado) {
+			t.Fatalf("tick %d sem passar de c: encerrado = %v", n, got)
+		}
+	}
+	av = Avanco{}
+	for n := 1; n < TicksParado; n++ {
+		if av.Tick(p, a, a) {
+			t.Fatalf("parado, tick %d: encerrado cedo", n)
+		}
+	}
+	if av.Tick(p, a, b) {
+		t.Fatal("avançou no último tick e foi encerrado")
+	}
+}
+
+// Com a Config do treino bater não mata (D23): quem bate e sai da parede segue
 // dirigindo e a Distancia volta a subir.
 func TestTreinoBaterNaoMata(t *testing.T) {
 	tr := treinoOval(t)

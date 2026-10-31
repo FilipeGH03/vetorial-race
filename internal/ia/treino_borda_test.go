@@ -9,7 +9,7 @@ import (
 )
 
 // O que o treino mede tem de ser o que o jogo faz: a mesma rede, rodada numa
-// sim.Corrida de NLargadas carros com a Config do treino (a da corrida, D21)
+// sim.Corrida de NLargadas carros com a Config do treino (a da corrida, D23)
 // pelos mesmos ticks, só ela dirigindo o carro k (os outros parados), dá a
 // mesma distância, voltas e batidas que a largada k de Treino.Rodar (D22).
 func TestRodarIgualACorridaDoJogo(t *testing.T) {
