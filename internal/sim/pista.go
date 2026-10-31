@@ -275,7 +275,7 @@ func reamostrar(pontos []Vec2, esp float64) (res []Vec2, passo, total float64) {
 		a, b := pontos[seg], pontos[(seg+1)%m]
 		f := 0.0
 		if comp[seg] > 0 {
-			f = math.Min(1, (alvo-inicio)/comp[seg])
+			f = min(1, (alvo-inicio)/comp[seg])
 		}
 		res = append(res, a.Add(b.Sub(a).Scale(f)))
 	}

@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"math"
 	"sort"
 )
 
@@ -60,7 +59,7 @@ func (c *Carro) AtualizarProgresso(de Vec2, p *Pista) {
 	// j é o último checkpoint cruzado; a projeção é no trecho j -> j+1 da linha central.
 	j := (pr.Proximo - 1 + n) % n
 	a, b := p.Centro[j], p.Centro[(j+1)%n]
-	s := math.Max(0, math.Min(p.Passo, c.Pos.Sub(a).Dot(b.Sub(a).Norm())))
+	s := max(0, min(p.Passo, c.Pos.Sub(a).Dot(b.Sub(a).Norm())))
 	d := float64(pr.Voltas)*p.Comprimento + float64(j)*p.Passo + s
 	if d > pr.Distancia {
 		pr.Distancia = d
@@ -105,7 +104,7 @@ func cruzaCheckpoint(de, ate Vec2, cp Segmento) (float64, bool) {
 	if (ladoA > folgaLinha && ladoB > folgaLinha) || (ladoA < -folgaLinha && ladoB < -folgaLinha) {
 		return 0, false
 	}
-	t := math.Max(0, math.Min(1, dDe/(dDe-dAte)))
+	t := max(0, min(1, dDe/(dDe-dAte)))
 	return t, true
 }
 

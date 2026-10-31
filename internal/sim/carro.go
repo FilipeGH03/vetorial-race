@@ -1,7 +1,5 @@
 package sim
 
-import "math"
-
 // Eixo escolhe qual componente do vetor velocidade uma Acao mexe.
 type Eixo int8
 
@@ -37,10 +35,10 @@ type Progresso struct {
 // Leitura é o que o carro "enxerga" (contrato 1.3). Aqui só o tipo; quem
 // preenche é sim.Ler.
 type Leitura struct {
-	Sensores [7]float64 // distância até a parede / AlcanceSensor, em [0,1]
-	Vel      Vec2       // componentes x e y
-	Modulo   float64    // |Vel|
-	Angulo   float64    // c.Angulo() (D11)
+	Sensores [NumSensores]float64 // distância até a parede / AlcanceSensor, em [0,1]
+	Vel      Vec2                 // componentes x e y
+	Modulo   float64              // |Vel|
+	Angulo   float64              // c.Angulo() (D11)
 }
 
 // limiarAngulo é o módulo de Vel abaixo do qual o carro mantém o ângulo anterior.
@@ -98,8 +96,8 @@ func (c *Carro) Mover(ctl Controle, cfg Config) {
 	if !temAcao[EixoY] {
 		c.Vel.Y *= atrito
 	}
-	c.Vel.X = math.Max(-cfg.VMax, math.Min(cfg.VMax, c.Vel.X))
-	c.Vel.Y = math.Max(-cfg.VMax, math.Min(cfg.VMax, c.Vel.Y))
+	c.Vel.X = max(-cfg.VMax, min(cfg.VMax, c.Vel.X))
+	c.Vel.Y = max(-cfg.VMax, min(cfg.VMax, c.Vel.Y))
 	if n := c.Vel.Len(); n > cfg.VMax {
 		c.Vel = c.Vel.Scale(cfg.VMax / n)
 	}

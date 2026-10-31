@@ -59,17 +59,13 @@ func distanciasSensores(c *Carro, p *Pista, alcance float64) [NumSensores]float6
 	o := c.Pos
 	lo := Vec2{X: o.X - alcance, Y: o.Y - alcance}
 	hi := Vec2{X: o.X + alcance, Y: o.Y + alcance}
-	for _, w := range [2][]Vec2{p.ParedeEsq, p.ParedeDir} {
-		n := len(w)
-		for j := 0; j < n; j++ {
-			a, b := w[j], w[(j+1)%n]
-			if caixasSeparadas(a, b, lo, hi) {
-				continue // longe demais para qualquer raio
-			}
-			for i, d := range dirs {
-				if t, ok := distanciaRaio(o, d, a, b); ok && t < dist[i] {
-					dist[i] = t
-				}
+	for t := range trechosParedes(p) {
+		if caixasSeparadas(t.A, t.B, lo, hi) {
+			continue // longe demais para qualquer raio
+		}
+		for i, d := range dirs {
+			if dd, ok := distanciaRaio(o, d, t.A, t.B); ok && dd < dist[i] {
+				dist[i] = dd
 			}
 		}
 	}

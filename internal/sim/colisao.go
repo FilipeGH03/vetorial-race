@@ -42,16 +42,9 @@ func cruzaParede(p *Pista, de, ate Vec2) bool {
 	}
 	lo := Vec2{X: min(de.X, ate.X), Y: min(de.Y, ate.Y)}
 	hi := Vec2{X: max(de.X, ate.X), Y: max(de.Y, ate.Y)}
-	for _, w := range [2][]Vec2{p.ParedeEsq, p.ParedeDir} {
-		n := len(w)
-		for i := 0; i < n; i++ {
-			a, b := w[i], w[(i+1)%n]
-			if caixasSeparadas(a, b, lo, hi) {
-				continue
-			}
-			if cruzaTrecho(de, ate, a, b) {
-				return true
-			}
+	for t := range trechosParedes(p) {
+		if !caixasSeparadas(t.A, t.B, lo, hi) && cruzaTrecho(de, ate, t.A, t.B) {
+			return true
 		}
 	}
 	return false

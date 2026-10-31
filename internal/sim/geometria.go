@@ -1,6 +1,6 @@
 package sim
 
-import "math"
+import "iter"
 
 // Geometria de segmentos usada pela pista (validação, paredes), pela colisão
 // e pelos sensores. Todas as funções aceitam segmentos de comprimento zero
@@ -12,8 +12,8 @@ func orientacao(p, q, r Vec2) float64 { return q.Sub(p).Cross(r.Sub(p)) }
 
 // noRetangulo diz se r (colinear com p e q) está dentro do retângulo de p a q.
 func noRetangulo(p, q, r Vec2) bool {
-	return math.Min(p.X, q.X) <= r.X && r.X <= math.Max(p.X, q.X) &&
-		math.Min(p.Y, q.Y) <= r.Y && r.Y <= math.Max(p.Y, q.Y)
+	return min(p.X, q.X) <= r.X && r.X <= max(p.X, q.X) &&
+		min(p.Y, q.Y) <= r.Y && r.Y <= max(p.Y, q.Y)
 }
 
 // segmentosSeTocam diz se os segmentos p1p2 e q1q2 têm algum ponto em comum
@@ -32,17 +32,27 @@ func segmentosSeTocam(p1, p2, q1, q2 Vec2) bool {
 		(d4 == 0 && noRetangulo(p1, p2, q2))
 }
 
+// interseccaoRetas resolve p + t·r = q + u·s: t e u são os parâmetros do ponto
+// em que as retas se cruzam, em cada uma (0 a 1 dentro do segmento, quando r e
+// s são as diferenças das pontas). ok = false se as retas são paralelas ou um
+// dos vetores tem comprimento zero (o determinante é 0).
+func interseccaoRetas(p, r, q, s Vec2) (t, u float64, ok bool) {
+	den := r.Cross(s)
+	if den == 0 {
+		return 0, 0, false
+	}
+	qp := q.Sub(p)
+	return qp.Cross(s) / den, qp.Cross(r) / den, true
+}
+
 // pontoDeCruzamento devolve o ponto em que os segmentos p1p2 e q1q2 se cruzam
 // (pontas incluídas). Segmentos paralelos (ou de comprimento zero) não se cruzam.
 func pontoDeCruzamento(p1, p2, q1, q2 Vec2) (Vec2, bool) {
-	r, s := p2.Sub(p1), q2.Sub(q1)
-	den := r.Cross(s)
-	if den == 0 {
+	r := p2.Sub(p1)
+	t, u, ok := interseccaoRetas(p1, r, q1, q2.Sub(q1))
+	if !ok {
 		return Vec2{}, false
 	}
-	qp := q1.Sub(p1)
-	t := qp.Cross(s) / den
-	u := qp.Cross(r) / den
 	if t < 0 || t > 1 || u < 0 || u > 1 {
 		return Vec2{}, false
 	}
@@ -61,14 +71,10 @@ func cruzaTrecho(p1, p2, q1, q2 Vec2) bool {
 	if segmentosSeTocam(p1, p2, q1, q2) {
 		return true
 	}
-	r, s := p2.Sub(p1), q2.Sub(q1)
-	den := r.Cross(s)
-	if den == 0 {
+	t, u, ok := interseccaoRetas(p1, p2.Sub(p1), q1, q2.Sub(q1))
+	if !ok {
 		return false
 	}
-	qp := q1.Sub(p1)
-	t := qp.Cross(s) / den
-	u := qp.Cross(r) / den
 	return t >= 0 && t <= 1 && u >= -folgaPonta && u <= 1+folgaPonta
 }
 
@@ -79,12 +85,9 @@ func cruzaTrecho(p1, p2, q1, q2 Vec2) bool {
 // ponta mais próxima à frente; segmento de comprimento zero (a = b) só é tocado
 // se o ponto estiver sobre o raio.
 func distanciaRaio(o, d, a, b Vec2) (float64, bool) {
-	s := b.Sub(a)
 	oa := a.Sub(o)
-	den := d.Cross(s)
-	if den != 0 {
-		t := oa.Cross(s) / den // ao longo do raio
-		u := oa.Cross(d) / den // ao longo do segmento, de 0 (a) a 1 (b)
+	// t é ao longo do raio; u, ao longo do segmento, de 0 (a) a 1 (b).
+	if t, u, ok := interseccaoRetas(o, d, a, b.Sub(a)); ok {
 		if t < 0 || u < -folgaPonta || u > 1+folgaPonta {
 			return 0, false
 		}
@@ -101,7 +104,7 @@ func distanciaRaio(o, d, a, b Vec2) (float64, bool) {
 	case ta <= 0 || tb <= 0:
 		return 0, true // a origem está sobre o segmento
 	default:
-		return math.Min(ta, tb), true
+		return min(ta, tb), true
 	}
 }
 
@@ -120,7 +123,7 @@ func distanciaPontoSegmento(q, a, b Vec2) float64 {
 	if l2 == 0 {
 		return q.Sub(a).Len()
 	}
-	t := math.Max(0, math.Min(1, q.Sub(a).Dot(ab)/l2))
+	t := max(0, min(1, q.Sub(a).Dot(ab)/l2))
 	return q.Sub(a.Add(ab.Scale(t))).Len()
 }
 
@@ -130,6 +133,25 @@ func distanciaEntreSegmentos(a, b, c, d Vec2) float64 {
 	if segmentosSeTocam(a, b, c, d) {
 		return 0
 	}
-	return math.Min(math.Min(distanciaPontoSegmento(a, c, d), distanciaPontoSegmento(b, c, d)),
-		math.Min(distanciaPontoSegmento(c, a, b), distanciaPontoSegmento(d, a, b)))
+	return min(distanciaPontoSegmento(a, c, d), distanciaPontoSegmento(b, c, d),
+		distanciaPontoSegmento(c, a, b), distanciaPontoSegmento(d, a, b))
+}
+
+// trechosParedes percorre todos os trechos das duas paredes da pista (esquerda
+// e depois direita), cada parede como polígono fechado (o último ponto liga no
+// primeiro). Os trechos podem ter comprimento zero. Pista nil não tem trechos.
+func trechosParedes(p *Pista) iter.Seq[Segmento] {
+	return func(yield func(Segmento) bool) {
+		if p == nil {
+			return
+		}
+		for _, w := range [2][]Vec2{p.ParedeEsq, p.ParedeDir} {
+			n := len(w)
+			for i := 0; i < n; i++ {
+				if !yield(Segmento{A: w[i], B: w[(i+1)%n]}) {
+					return
+				}
+			}
+		}
+	}
 }
