@@ -48,12 +48,10 @@ func NovoComPista(p *sim.Pista) *Jogo {
 	return j
 }
 
-// Largada põe o carro parado na largada (início da linha central), apontado na
-// direção da pista.
+// Largada põe o carro parado atrás da linha de largada, apontado pela pista
+// (sim.Largada, D18).
 func (j *Jogo) Largada() {
-	c := sim.NovoCarro(0, j.Pista.Centro[0])
-	c.DefinirAngulo(j.Pista.Centro[1].Sub(j.Pista.Centro[0]).Angle())
-	j.Carro = c
+	j.Carro = sim.Largada(j.Pista, 1)[0]
 }
 
 // Passo roda um tick da simulação com as teclas dadas: Controle (contrato 1.1) e

@@ -8,8 +8,8 @@ import (
 	"vetorial-race/internal/sim"
 )
 
-// Toda pista real do repositorio: o carro nasce na largada, vivo, e o angulo
-// aponta para o proximo ponto da linha central.
+// Toda pista real do repositorio: o carro nasce em sim.Largada(p, 1)[0], vivo,
+// com o angulo dado pela largada.
 func TestLargadaEmTodasAsPistas(t *testing.T) {
 	arqs, _ := filepath.Glob("../../pistas/*.json")
 	if len(arqs) == 0 {
@@ -22,10 +22,11 @@ func TestLargadaEmTodasAsPistas(t *testing.T) {
 			continue
 		}
 		j := NovoComPista(p)
-		if !j.Carro.Vivo || j.Carro.Pos != p.Centro[0] {
+		ref := sim.Largada(p, 1)[0]
+		if !j.Carro.Vivo || j.Carro.Pos != ref.Pos {
 			t.Errorf("%s: carro fora da largada %+v", a, j.Carro)
 		}
-		esp := p.Centro[1].Sub(p.Centro[0]).Angle()
+		esp := ref.Angulo()
 		if d := math.Abs(j.Carro.Angulo() - esp); d > 1e-9 {
 			t.Errorf("%s: angulo %v esperado %v", a, j.Carro.Angulo(), esp)
 		}

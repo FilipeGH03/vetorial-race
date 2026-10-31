@@ -109,12 +109,12 @@ func novoOval(t *testing.T) *Jogo {
 
 func TestLargadaNaPistaApontadaParaFrente(t *testing.T) {
 	j := novoOval(t)
-	if j.Carro.Pos != j.Pista.Centro[0] || !j.Carro.Vivo {
+	ref := sim.Largada(j.Pista, 1)[0]
+	if j.Carro.Pos != ref.Pos || !j.Carro.Vivo {
 		t.Fatalf("carro fora da largada: %+v", j.Carro)
 	}
-	// oval: Centro[0] -> Centro[1] aponta para +x.
-	if a := j.Carro.Angulo(); math.Abs(a) > 1e-9 {
-		t.Errorf("ângulo da largada = %v, esperado 0", a)
+	if a := j.Carro.Angulo(); math.Abs(a-ref.Angulo()) > 1e-9 {
+		t.Errorf("ângulo da largada = %v, esperado %v", a, ref.Angulo())
 	}
 	if j.Cfg.BaterMata {
 		t.Error("na corrida BaterMata deve ser false (D2)")
@@ -123,7 +123,7 @@ func TestLargadaNaPistaApontadaParaFrente(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		j.Passo(Teclas{})
 	}
-	if j.Carro.Pos != j.Pista.Centro[0] || j.Carro.Vel != (sim.Vec2{}) {
+	if j.Carro.Pos != ref.Pos || j.Carro.Vel != (sim.Vec2{}) {
 		t.Errorf("carro parado se mexeu: %+v", j.Carro)
 	}
 }
