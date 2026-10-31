@@ -22,6 +22,18 @@ Dirija com WASD ou as setas (duas teclas juntas dão a diagonal); bater na pared
 Outra pista: `go run ./cmd/jogo -pista pistas/outra.json`.
 Na primeira vez o `go run` baixa as dependências sozinho.
 
+## Editor de pista
+
+```
+go run ./cmd/jogo -editar pistas/minha.json
+```
+
+Arraste o mouse com o botão esquerdo para desenhar a linha central (o circuito fecha sozinho e o
+sentido é o do traço). Roda do mouse ou setas cima/baixo mudam a largura (40 a 200 px). `S` salva no
+arquivo, `L` recarrega, `C` ou `Esc` limpam. Se o arquivo já existe, ele é aberto para editar.
+Pista inválida (por exemplo um oito) mostra o erro e marca o cruzamento; a pista só cabe em 1280x720.
+Depois: `go run ./cmd/jogo -pista pistas/minha.json`.
+
 ## Verificar
 
 ```
