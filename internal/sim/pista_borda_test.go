@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 var ovalPontos = []Vec2{{200, 300}, {600, 300}, {700, 400}, {600, 500}, {200, 500}, {100, 400}}
@@ -215,5 +216,37 @@ func TestLarguraNaoFinitaDaErro(t *testing.T) {
 	nan := append([]Vec2{{math.NaN(), 0}}, ovalPontos...)
 	if _, err := NovaPista("x", 90, nan); !errors.Is(err, ErrPistaInvalida) {
 		t.Errorf("ponto NaN: err = %v, want ErrPistaInvalida", err)
+	}
+}
+
+// A6 (D12): teto de tamanho da pista, recusado rápido e sem pânico.
+func TestPistaTetoDeTamanho(t *testing.T) {
+	quad := func(l float64) []Vec2 { return []Vec2{{0, 0}, {l, 0}, {l, l}, {0, l}} }
+	casos := []struct {
+		nome   string
+		pontos []Vec2
+	}{
+		{"coordenada 1e9", quad(1e9)},
+		{"x acima do teto", []Vec2{{-100001, 0}, {0, 0}, {0, 800}, {-100001, 800}}},
+		{"y acima do teto", []Vec2{{0, 100001}, {800, 100001}, {800, 0}, {0, 0}}},
+		{"perimetro 200000", quad(50000)},
+		{"perimetro 100100", quad(25025)},
+	}
+	for _, tc := range casos {
+		t0 := time.Now()
+		_, err := NovaPista("x", 90, tc.pontos)
+		if !errors.Is(err, ErrPistaInvalida) {
+			t.Errorf("%s: err = %v, want ErrPistaInvalida", tc.nome, err)
+		}
+		if d := time.Since(t0); d > 100*time.Millisecond {
+			t.Errorf("%s: demorou %v", tc.nome, d)
+		}
+	}
+	// Exatamente no limite ainda carrega: perímetro 100000 = 5000 pontos.
+	if _, err := NovaPista("x", 90, quad(25000)); err != nil {
+		t.Errorf("perímetro 100000: %v", err)
+	}
+	if _, err := NovaPista("x", 90, ovalPontos); err != nil {
+		t.Errorf("oval: %v", err)
 	}
 }

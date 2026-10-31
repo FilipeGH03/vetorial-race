@@ -21,6 +21,10 @@ const (
 	PontosPistaMin   = 8     // mínimo de pontos depois de reamostrar
 	pontosArquivoMin = 3     // mínimo de pontos no arquivo para formar um circuito
 
+	// Teto de tamanho (D12/A6): protege contra pistas absurdas antes de reamostrar.
+	CoordenadaPistaMax = 100000.0 // px: |x| e |y| máximos de um ponto
+	PontosPistaMax     = 5000     // máximo de pontos depois de reamostrar
+
 	// miterMinCos é o menor cos(φ/2) aceito numa curva φ de um ponto da linha
 	// reamostrada (φ ≤ 120°, miter até 2·meia). Quinas mais vivas que isso já são
 	// recusadas por trechosColados; aqui é só a guarda contra divisão por ~0.
@@ -121,6 +125,16 @@ func NovaPista(nome string, largura float64, pontos []Vec2) (*Pista, error) {
 		if math.IsNaN(q.X) || math.IsNaN(q.Y) || math.IsInf(q.X, 0) || math.IsInf(q.Y, 0) {
 			return nil, fmt.Errorf("%w: centro[%d] não é finito", ErrPistaInvalida, i)
 		}
+		if math.Abs(q.X) > CoordenadaPistaMax || math.Abs(q.Y) > CoordenadaPistaMax {
+			return nil, fmt.Errorf("%w: centro[%d] fora do limite de %v px", ErrPistaInvalida, i, CoordenadaPistaMax)
+		}
+	}
+	var perim float64
+	for i := range pontos {
+		perim += pontos[(i+1)%len(pontos)].Sub(pontos[i]).Len()
+	}
+	if perim/EspacamentoPista > PontosPistaMax+0.5 {
+		return nil, fmt.Errorf("%w: pista de %.0f px daria mais de %d pontos depois de reamostrar", ErrPistaInvalida, perim, PontosPistaMax)
 	}
 
 	centro, passo, total := reamostrar(pontos, EspacamentoPista)
