@@ -13,10 +13,24 @@ import (
 func main() {
 	pista := flag.String("pista", "", "pista já escolhida no menu (ex.: pistas/oval.json)")
 	editar := flag.String("editar", "", "abre o editor de pista (ex.: pistas/nova.json): carrega o arquivo se existir; S salva nele")
+	treino := flag.String("treino", "", "abre a tela de treino visual da IA na pista (ex.: pistas/oval.json); S salva o melhor cérebro em cerebros/<pista>.json")
+	seed := flag.Uint64("seed", 1, "seed do treino visual (mesma seed, mesmo resultado)")
 	flag.Parse()
 
 	ebiten.SetTPS(jogo.TPS)
 	ebiten.SetWindowSize(jogo.LarguraTela, jogo.AlturaTela)
+
+	if *treino != "" {
+		t, err := jogo.NovoTreinoTela(*treino, jogo.DirCerebros, *seed)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ebiten.SetWindowTitle("Corrida Vetorial - treino da IA")
+		if err := ebiten.RunGame(t); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	if *editar != "" {
 		e, err := jogo.NovoEditorTela(*editar)

@@ -32,6 +32,21 @@ e a IA fica parada. Se você morre na Eliminação, a partida acaba. Ao fim apar
 classificação: R joga de novo, Enter volta ao menu. `-pista pistas/outra.json` já escolhe a pista no menu.
 Na primeira vez o `go run` baixa as dependências sozinho.
 
+## Tela de treino
+
+```
+go run ./cmd/jogo -treino pistas/oval.json      (ou T no menu, com a pista escolhida)
+```
+
+Mostra a neuroevolução ao vivo: os 50 carros da geração andam ao mesmo tempo na pista, cada um com os 7
+raios dos sensores (direções fixas do mundo) até a parede; o líder aparece em amarelo, quem parou
+(bateu e ficou 1 s sem avançar, ou acabou o tempo) fica esmaecido. Cada geração tem 6 rodadas, uma por
+posição de `sim.Largada(p, 6)`, e a nota é a média das 6, como em `cmd/treino`. O painel mostra
+geração, rodada, melhor e média da pontuação da última geração e o melhor de todas, e o gráfico traça
+as duas curvas. Espaço pausa, `+`/`-` (ou cima/baixo) mudam a velocidade (1x a 32x), `S` ou o botão
+verde gravam o melhor cérebro em `cerebros/<pista>.json` (atenção: sobrescreve o cérebro que a corrida
+usa), Esc sai. `-seed n` muda a seed.
+
 ## Editor de pista
 
 ```

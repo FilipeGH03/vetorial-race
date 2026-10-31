@@ -21,6 +21,7 @@ const (
 	TelaMenu    Tela = iota // escolher pista, modo, voltas e carros
 	TelaPartida             // corrida em andamento
 	TelaFim                 // vencedor e classificação
+	TelaTreino              // treino visual da IA (T no menu)
 )
 
 var (
@@ -37,6 +38,7 @@ type App struct {
 	Tela    Tela
 	Menu    *Menu
 	Partida *Partida
+	Treino  *TreinoTela
 	Opcoes  Opcoes // da última partida, para jogar de novo
 
 	imgCarro *ebiten.Image // sprite do carro (nil nos testes, que não desenham)
@@ -78,7 +80,19 @@ func (a *App) iniciarCom(o Opcoes) error {
 }
 
 // Voltar volta ao menu.
-func (a *App) Voltar() { a.Tela, a.Partida, a.imgPista = TelaMenu, nil, nil }
+func (a *App) Voltar() { a.Tela, a.Partida, a.Treino, a.imgPista = TelaMenu, nil, nil, nil }
+
+// IniciarTreino abre a tela de treino na pista escolhida no menu (seed 1). Se a
+// pista é recusada, fica no menu com o aviso.
+func (a *App) IniciarTreino() error {
+	v, err := NovoTreinoVisual(a.Menu.CaminhoPista(), a.Menu.DirCerebros, 1)
+	if err != nil {
+		a.Menu.Aviso = err.Error()
+		return err
+	}
+	a.Treino, a.Tela = &TreinoTela{V: v, imgCarro: a.imgCarro}, TelaTreino
+	return nil
+}
 
 // PassoPartida roda um tick da partida com as teclas dadas e passa para a tela
 // do vencedor quando a corrida termina.
@@ -110,6 +124,8 @@ func (a *App) Update() error {
 			m.Direita()
 		case teclaApertada(ebiten.KeyEnter, ebiten.KeySpace):
 			_ = a.Iniciar() // o erro vai para Menu.Aviso
+		case teclaApertada(ebiten.KeyT):
+			_ = a.IniciarTreino() // idem
 		}
 	case TelaPartida:
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
@@ -117,6 +133,10 @@ func (a *App) Update() error {
 			return nil
 		}
 		a.PassoPartida(TeclasDe(ebiten.IsKeyPressed))
+	case TelaTreino:
+		if a.Treino.Atualizar() {
+			a.Voltar()
+		}
 	case TelaFim:
 		switch {
 		case inpututil.IsKeyJustPressed(ebiten.KeyR):
@@ -150,6 +170,8 @@ func (a *App) Draw(tela *ebiten.Image) {
 	case TelaFim:
 		a.desenharPartida(tela)
 		a.desenharFim(tela)
+	case TelaTreino:
+		a.Treino.Draw(tela)
 	}
 }
 
@@ -166,7 +188,7 @@ func (a *App) desenharMenu(tela *ebiten.Image) {
 		}
 		a.textoGrande(tela, linha, 110, y, 3, cor)
 	}
-	ajuda := "Cima/Baixo: escolher linha   Esquerda/Direita: mudar   Enter: correr   Esc: sair"
+	ajuda := "Cima/Baixo: escolher linha   Esquerda/Direita: mudar   Enter: correr   T: treino da IA   Esc: sair"
 	texto(tela, ajuda, 80, 480)
 	texto(tela, "Dentro da corrida: WASD/setas dirigem (x e y), Esc volta ao menu", 80, 500)
 	if m.Aviso != "" {
