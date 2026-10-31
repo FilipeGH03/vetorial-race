@@ -54,7 +54,7 @@ func TestControladorNaCorridaDoJogo(t *testing.T) {
 		t.Fatal(err)
 	}
 	espia := &espiao{Controlador: NovoControlador(r)}
-	cor, err := sim.NovaCorrida(p, sim.ConfigPadrao(), sim.ModoVoltas, 1, []sim.Controlador{espia})
+	cor, err := sim.NovaCorrida(p, sim.ConfigPadrao(), sim.ModoVoltas, 1, []sim.Controlador{espia, nil}, -1)
 	if err != nil {
 		t.Fatal(err)
 	}

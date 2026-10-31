@@ -25,20 +25,10 @@ func TestCorridaStepDepoisDeTerminadaNaoFazNada(t *testing.T) {
 	}
 }
 
-// Corrida de um carro só na Eliminação não termina no tick 1 (não há "último vivo").
-func TestCorridaEliminacaoUmCarroNaoTerminaLogo(t *testing.T) {
-	p := carregarOval(t)
-	r := novaCorridaComSeguidores(t, p, ModoEliminacao, 0, &seguidor{p: p, vAlvo: 150})
-	r.Step()
-	if r.Terminada {
-		t.Error("Eliminação com 1 carro terminou no primeiro tick")
-	}
-}
-
 // Controlador nil vale como carro parado e não causa pânico.
 func TestCorridaControladorNil(t *testing.T) {
 	p := carregarOval(t)
-	r, err := NovaCorrida(p, ConfigPadrao(), ModoVoltas, 1, []Controlador{nil, reta{}})
+	r, err := NovaCorrida(p, ConfigPadrao(), ModoVoltas, 1, []Controlador{nil, reta{}}, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +90,7 @@ func TestCorridaEliminacaoBaterMata(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
 	cfg.BaterMata = true
-	r, err := NovaCorrida(p, cfg, ModoEliminacao, 0, []Controlador{reta{}, reta{}, parado{}})
+	r, err := NovaCorrida(p, cfg, ModoEliminacao, 0, []Controlador{reta{}, reta{}, parado{}}, -1)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -41,6 +41,7 @@ type Corrida struct {
 
 	Carros        []Carro       // Carros[i] é controlado por Controladores[i]
 	Controladores []Controlador // nil = carro sem controle (não mexe em nada)
+	Humano        int           // índice do jogador em Carros; -1 = nenhum (D19)
 
 	Tick      int  // ticks já rodados; o tempo é Tick*Cfg.DT
 	Terminada bool // Step não faz mais nada
@@ -53,9 +54,14 @@ type Corrida struct {
 // NovaCorrida monta uma partida com um carro por controlador, postos por
 // Largada(p, len(ctls)) (D18: uma vez, no início). Controlador nil vale como
 // carro parado. Em ModoVoltas, voltas ≥ 1 é a meta; na Eliminação voltas é
-// ignorado. cfg é usado como veio (corrida: BaterMata = false).
-func NovaCorrida(p *Pista, cfg Config, modo Modo, voltas int, ctls []Controlador) (*Corrida, error) {
-	if p == nil || len(ctls) == 0 || cfg.DT <= 0 {
+// ignorado. cfg é usado como veio (corrida: BaterMata = false). Exige 2 a 8
+// controladores e humano em [-1, len(ctls)) (D19); a partida acaba quando o
+// humano morre.
+func NovaCorrida(p *Pista, cfg Config, modo Modo, voltas int, ctls []Controlador, humano int) (*Corrida, error) {
+	if p == nil || len(ctls) < 2 || len(ctls) > 8 || cfg.DT <= 0 {
+		return nil, ErrCorridaInvalida
+	}
+	if humano < -1 || humano >= len(ctls) {
 		return nil, ErrCorridaInvalida
 	}
 	if modo != ModoVoltas && modo != ModoEliminacao {
@@ -75,6 +81,7 @@ func NovaCorrida(p *Pista, cfg Config, modo Modo, voltas int, ctls []Controlador
 		Voltas:        voltas,
 		Carros:        carros,
 		Controladores: append([]Controlador(nil), ctls...),
+		Humano:        humano,
 		Vencedor:      -1,
 		morte:         make([]int, len(carros)),
 	}
@@ -114,6 +121,22 @@ func (r *Corrida) Step() {
 		r.fimDoTickVoltas()
 	} else {
 		r.fimDoTickEliminacao()
+	}
+	r.fimPorHumano()
+}
+
+// fimPorHumano encerra a partida quando o humano morreu (D19): vence o 1º da
+// classificação entre os vivos; sem vivos, o vencedor já decidido fica.
+func (r *Corrida) fimPorHumano() {
+	if r.Terminada || r.Humano < 0 || r.Carros[r.Humano].Vivo {
+		return
+	}
+	r.Terminada = true
+	for _, i := range r.Classificacao() {
+		if r.Carros[i].Vivo {
+			r.Vencedor = i
+			return
+		}
 	}
 }
 
@@ -171,14 +194,22 @@ func (r *Corrida) fimDoTickEliminacao() {
 	case vivos == 0:
 		// Os últimos morreram juntos: vence quem estava mais adiante.
 		r.Terminada = true
-		melhor := -1
+		melhor, empate := -1, false
 		for i := range r.Carros {
 			if r.morte[i] != r.Tick {
 				continue
 			}
-			if melhor < 0 || r.Carros[i].Progresso.MaisAdiante(r.Carros[melhor].Progresso) {
-				melhor = i
+			switch {
+			case melhor < 0:
+				melhor, empate = i, false
+			case r.Carros[i].Progresso.MaisAdiante(r.Carros[melhor].Progresso):
+				melhor, empate = i, false
+			case !r.Carros[melhor].Progresso.MaisAdiante(r.Carros[i].Progresso):
+				empate = true // mesma Voltas e Distancia exatas
 			}
+		}
+		if empate {
+			melhor = -1
 		}
 		r.Vencedor = melhor
 	}

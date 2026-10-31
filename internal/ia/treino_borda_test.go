@@ -22,10 +22,11 @@ func TestRodarIgualACorridaDoJogo(t *testing.T) {
 		}
 		for i, r := range pop.Redes {
 			want := tr.Rodar(r)
-			cor, err := sim.NovaCorrida(tr.Pista, tr.Cfg, sim.ModoVoltas, 1, []sim.Controlador{NovoControlador(r)})
+			cor, err := sim.NovaCorrida(tr.Pista, tr.Cfg, sim.ModoVoltas, 1, []sim.Controlador{NovoControlador(r), nil}, -1)
 			if err != nil {
 				t.Fatal(err)
 			}
+			cor.Carros[0] = sim.Largada(tr.Pista, 1)[0] // o treino larga sozinho (D18)
 			for n := 0; n < tr.MaxTicks && cor.Carros[0].Vivo && !cor.Terminada; n++ {
 				cor.Step()
 			}

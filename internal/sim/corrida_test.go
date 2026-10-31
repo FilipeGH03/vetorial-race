@@ -66,7 +66,7 @@ func (reta) Decidir(Leitura) Controle {
 // novaCorridaComSeguidores monta a corrida e liga cada seguidor ao seu carro.
 func novaCorridaComSeguidores(t testing.TB, p *Pista, modo Modo, voltas int, ctls ...Controlador) *Corrida {
 	t.Helper()
-	r, err := NovaCorrida(p, ConfigPadrao(), modo, voltas, ctls)
+	r, err := NovaCorrida(p, ConfigPadrao(), modo, voltas, ctls, -1)
 	if err != nil {
 		t.Fatalf("NovaCorrida: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestCorridaVoltasSemVencedorSeTodosMorrem(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
 	cfg.BaterMata = true
-	r, err := NovaCorrida(p, cfg, ModoVoltas, 3, []Controlador{reta{}, reta{}})
+	r, err := NovaCorrida(p, cfg, ModoVoltas, 3, []Controlador{reta{}, reta{}}, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestCorridaLaserD6(t *testing.T) {
 		t.Errorf("laser sai de %+v, quer Centro[0] = %+v", ini, p.Centro[0])
 	}
 	// Em Voltas não há laser.
-	rv := novaCorridaComSeguidores(t, p, ModoVoltas, 1, parado{})
+	rv := novaCorridaComSeguidores(t, p, ModoVoltas, 1, parado{}, parado{})
 	rv.Tick = 10000
 	if _, ativo := rv.Laser(); ativo {
 		t.Error("laser ativo em ModoVoltas")
@@ -310,7 +310,7 @@ func TestCorridaLaserD6(t *testing.T) {
 // por ela e nunca sai da pista.
 func TestCorridaUsaAvancarComColisao(t *testing.T) {
 	p := carregarOval(t)
-	r := novaCorridaComSeguidores(t, p, ModoVoltas, 3, reta{})
+	r := novaCorridaComSeguidores(t, p, ModoVoltas, 3, reta{}, parado{})
 	lo, hi := p.ParedeEsq[0], p.ParedeEsq[0]
 	for _, q := range append(slices.Clone(p.ParedeEsq), p.ParedeDir...) {
 		lo = Vec2{X: min(lo.X, q.X), Y: min(lo.Y, q.Y)}
@@ -352,7 +352,7 @@ func TestCorridaDeterministica(t *testing.T) {
 func TestNovaCorridaErros(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
-	um := []Controlador{parado{}}
+	um := []Controlador{parado{}, parado{}}
 	casos := []struct {
 		nome string
 		p    *Pista
@@ -369,16 +369,16 @@ func TestNovaCorridaErros(t *testing.T) {
 		{"pista vazia", &Pista{}, cfg, ModoVoltas, 1, um},
 	}
 	for _, c := range casos {
-		if r, err := NovaCorrida(c.p, c.cfg, c.modo, c.v, c.ctls); !errors.Is(err, ErrCorridaInvalida) || r != nil {
+		if r, err := NovaCorrida(c.p, c.cfg, c.modo, c.v, c.ctls, -1); !errors.Is(err, ErrCorridaInvalida) || r != nil {
 			t.Errorf("%s: err = %v, quer ErrCorridaInvalida", c.nome, err)
 		}
 	}
 	// Eliminação ignora as voltas.
-	if _, err := NovaCorrida(p, cfg, ModoEliminacao, 0, um); err != nil {
+	if _, err := NovaCorrida(p, cfg, ModoEliminacao, 0, um, -1); err != nil {
 		t.Errorf("Eliminação com voltas 0: %v", err)
 	}
 	// Controlador nil vale como carro parado.
-	r, err := NovaCorrida(p, cfg, ModoVoltas, 1, []Controlador{nil, nil})
+	r, err := NovaCorrida(p, cfg, ModoVoltas, 1, []Controlador{nil, nil}, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
