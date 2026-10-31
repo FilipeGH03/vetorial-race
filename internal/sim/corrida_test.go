@@ -282,8 +282,8 @@ func TestCorridaLaserD6(t *testing.T) {
 	// Posição: na reta de baixo do oval (y = 300) e a faixa atravessa a pista.
 	r.Tick = 180 + 60
 	pos := r.LaserPos()
-	if math.Abs(pos.Y-300) > 1e-6 || math.Abs(pos.X-324) > 1.5 {
-		t.Errorf("LaserPos = %+v, quer ≈ (324, 300)", pos)
+	if math.Abs(pos.Y-300) > 1e-6 || math.Abs(pos.X-524) > 1.5 {
+		t.Errorf("LaserPos = %+v, quer ≈ (524, 300)", pos)
 	}
 	f := r.LaserFaixa()
 	if l := f.B.Sub(f.A).Len(); math.Abs(l-p.Largura) > 1e-6 {

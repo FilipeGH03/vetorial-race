@@ -60,17 +60,68 @@ func RaiosSensores(c *Carro, p *Pista, cfg Config) [NumSensores]Segmento {
 // direcaoSensor é o vetor unitário do raio i, no referencial do mundo (D20).
 func direcaoSensor(i int) Vec2 { return dirsSensores[i] }
 
-// dirPista é a direção da pista à frente do carro (D20), com m pontos em Centro
-// e i = c.Progresso.Proximo: [0] = Norm(Centro[(i+1)%m] − Centro[i]) e
-// [1] = Norm(Centro[(i+6)%m] − Centro[(i+5)%m]). Sem pista, vetores nulos.
+// dirPista é a direção da pista à frente do carro (D23), com m pontos em Centro
+// e j o trecho Centro[j] -> Centro[j+1] da linha central mais perto da posição
+// do carro (não depende de Progresso): [0] = Norm(Centro[(j+1)%m] − Centro[j]) e
+// [1] = Norm(Centro[(j+6)%m] − Centro[(j+5)%m]). Sem pista, vetores nulos.
 func dirPista(c *Carro, p *Pista) [2]Vec2 {
 	if p == nil || len(p.Centro) == 0 {
 		return [2]Vec2{}
 	}
 	m := len(p.Centro)
-	i := ((c.Progresso.Proximo % m) + m) % m
-	at := func(k int) Vec2 { return p.Centro[(i+k)%m] }
+	j, _ := trechoMaisPertoDe(p, c.Pos)
+	at := func(k int) Vec2 { return p.Centro[(j+k)%m] }
 	return [2]Vec2{at(1).Sub(at(0)).Norm(), at(6).Sub(at(5)).Norm()}
+}
+
+// trechoMaisPertoDe devolve o índice j do trecho Centro[j] -> Centro[j+1] da
+// linha central mais perto de q e a projeção de q nele, em px a partir de
+// Centro[j], limitada a [0, comprimento do trecho]. Empate fica com o menor j.
+// Pista sem Centro devolve (0, 0).
+func trechoMaisPertoDe(p *Pista, q Vec2) (int, float64) {
+	n := len(p.Centro)
+	melhor, proj, menor := 0, 0.0, math.Inf(1)
+	for j, a := range p.Centro {
+		ab := p.Centro[(j+1)%n].Sub(a)
+		l2 := ab.Dot(ab)
+		t := 0.0
+		if l2 > 0 {
+			t = max(0, min(1, q.Sub(a).Dot(ab)/l2))
+		}
+		if r := q.Sub(a.Add(ab.Scale(t))); r.Dot(r) < menor {
+			melhor, proj, menor = j, t*math.Sqrt(l2), r.Dot(r)
+		}
+	}
+	return melhor, proj
+}
+
+// AvancoNaLinha diz quanto o caminho de "de" até "ate" avançou no sentido da
+// pista, em px com sinal (D23): a diferença das projeções dos dois pontos na
+// linha central, medidas ao longo dela a partir de Centro[0]. Conta também antes
+// de cruzar a largada e não depende de Progresso. Andar no sentido da pista dá
+// valor positivo, de ré negativo, ficar parado zero; a soma dos avanços de um
+// caminho que dá uma volta é ≈ p.Comprimento. A diferença é levada para
+// (−Comprimento/2, Comprimento/2], de modo que passar do fim da linha central
+// para o começo não dá um salto. Pista nil ou sem Centro devolve 0.
+func AvancoNaLinha(p *Pista, de, ate Vec2) float64 {
+	if p == nil || len(p.Centro) == 0 || p.Comprimento <= 0 {
+		return 0
+	}
+	d := arcoDoPonto(p, ate) - arcoDoPonto(p, de)
+	d = math.Mod(d, p.Comprimento)
+	if d > p.Comprimento/2 {
+		d -= p.Comprimento
+	} else if d <= -p.Comprimento/2 {
+		d += p.Comprimento
+	}
+	return d
+}
+
+// arcoDoPonto é a distância, ao longo da linha central a partir de
+// Centro[0], da projeção de q nela (de 0 a p.Comprimento).
+func arcoDoPonto(p *Pista, q Vec2) float64 {
+	j, s := trechoMaisPertoDe(p, q)
+	return float64(j)*p.Passo + s
 }
 
 // distanciasSensores devolve, para cada raio, a distância do centro do carro

@@ -147,9 +147,11 @@ func TestRodarRetoBateEParaSemMorrer(t *testing.T) {
 }
 
 // Sempre diminui x: nunca cruza a largada, bate atrás dela e só perde pontos.
+// (Com a largada no meio da reta de baixo (D23), de ré em 1 s o carro pode nem
+// chegar à parede: Batidas pode ser 0.)
 func TestRodarDeReNaoPontua(t *testing.T) {
 	for k, res := range treinoOval(t).Rodar(redeFixa(-2, 2, 0)).Largadas {
-		if !res.Parou || res.Distancia != 0 || res.Batidas == 0 || res.Pontuacao != -PenaBatida*float64(res.Batidas) {
+		if !res.Parou || res.Distancia != 0 || res.Pontuacao != -PenaBatida*float64(res.Batidas) {
 			t.Fatalf("de ré, largada %d: %+v", k, res)
 		}
 	}

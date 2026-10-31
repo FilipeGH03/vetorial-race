@@ -144,21 +144,20 @@ func TestLeituraUsaAnguloDoCarro(t *testing.T) {
 }
 
 // DirPista na reta de baixo do oval é (1,0) nos dois vetores; numa quina os dois
-// diferem (D20).
+// diferem (D20, D23). O trecho vem da posição do carro, não do Progresso.
 func TestDirPistaRetaEQuinaDoOval(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
 	c := carroEm(Vec2{400, 300}, 0)
-	c.Progresso.Proximo = 3 // checkpoints 3..9 ainda na reta (200,300)-(600,300)
 	l := Ler(c, p, cfg)
 	for j, d := range l.DirPista {
 		if math.Abs(d.X-1) > 1e-9 || math.Abs(d.Y) > 1e-9 {
 			t.Errorf("reta: DirPista[%d] = %v, quer (1,0)", j, d)
 		}
 	}
-	// Perto de (600,300), onde a pista vira para (700,400): o próximo trecho ainda
-	// é reto e 5 checkpoints adiante já é a diagonal.
-	c.Progresso.Proximo = 18
+	// Perto de (600,300), onde a pista vira para (700,400): o trecho mais perto
+	// ainda é reto e 5 trechos adiante já é a diagonal.
+	c = carroEm(Vec2{540, 300}, 0)
 	l = Ler(c, p, cfg)
 	if l.DirPista[0].Sub(l.DirPista[1]).Len() < 0.1 {
 		t.Errorf("quina: DirPista = %v, quer vetores diferentes", l.DirPista)
@@ -168,27 +167,31 @@ func TestDirPistaRetaEQuinaDoOval(t *testing.T) {
 	}
 }
 
-// DirPista segue a fórmula do contrato (D20) em qualquer pista e qualquer
-// Proximo, inclusive além de m (dá a volta), e são sempre vetores unitários.
+// DirPista segue a fórmula do contrato (D23) em qualquer pista: j é o trecho da
+// linha central mais perto do carro, e os vetores são sempre unitários. Não
+// depende de Progresso, qualquer que seja o Proximo (inclusive fora de [0, m)).
 func TestDirPistaFormulaEUnitarios(t *testing.T) {
 	cfg := ConfigPadrao()
 	for _, p := range pistasDeForma(t) {
 		m := len(p.Centro)
-		for _, i := range []int{0, 1, 2, m / 2, m - 7, m - 6, m - 2, m - 1, m, m + 3, -1} {
-			c := carroEm(p.Centro[0], 0)
-			c.Progresso.Proximo = i
-			l := Ler(c, p, cfg)
-			im := ((i % m) + m) % m
+		for _, j := range []int{0, 1, 2, m / 2, m - 7, m - 6, m - 2, m - 1} {
+			// O meio do trecho j está a 0 px dele, e de nenhum outro.
+			meio := p.Centro[j].Add(p.Centro[(j+1)%m]).Scale(0.5)
 			want := [2]Vec2{
-				p.Centro[(im+1)%m].Sub(p.Centro[im]).Norm(),
-				p.Centro[(im+6)%m].Sub(p.Centro[(im+5)%m]).Norm(),
+				p.Centro[(j+1)%m].Sub(p.Centro[j]).Norm(),
+				p.Centro[(j+6)%m].Sub(p.Centro[(j+5)%m]).Norm(),
 			}
-			for j, d := range l.DirPista {
-				if math.Abs(d.Len()-1) > 1e-9 {
-					t.Errorf("%s, Proximo %d: |DirPista[%d]| = %v, quer 1", p.Nome, i, j, d.Len())
-				}
-				if d.Sub(want[j]).Len() > 1e-12 {
-					t.Errorf("%s, Proximo %d: DirPista[%d] = %v, quer %v", p.Nome, i, j, d, want[j])
+			for _, prox := range []int{0, 3, m / 2, m + 3, -1} {
+				c := carroEm(meio, 0)
+				c.Progresso.Proximo = prox
+				l := Ler(c, p, cfg)
+				for k, d := range l.DirPista {
+					if math.Abs(d.Len()-1) > 1e-9 {
+						t.Errorf("%s, trecho %d, Proximo %d: |DirPista[%d]| = %v, quer 1", p.Nome, j, prox, k, d.Len())
+					}
+					if d.Sub(want[k]).Len() > 1e-12 {
+						t.Errorf("%s, trecho %d, Proximo %d: DirPista[%d] = %v, quer %v", p.Nome, j, prox, k, d, want[k])
+					}
 				}
 			}
 		}
@@ -197,6 +200,85 @@ func TestDirPistaFormulaEUnitarios(t *testing.T) {
 	if l := Ler(carroEm(Vec2{}, 0), nil, cfg); l.DirPista != ([2]Vec2{}) {
 		t.Errorf("pista nil: DirPista = %v, quer nulos", l.DirPista)
 	}
+}
+
+// ovalAntigo é o oval de exemplo com o 1º ponto no começo da reta de baixo
+// (antes da D23), para testar a largada em quina.
+func ovalAntigo(t *testing.T) *Pista {
+	t.Helper()
+	p, err := NovaPista("oval-antigo", 90, []Vec2{{200, 300}, {600, 300}, {700, 400}, {600, 500}, {200, 500}, {100, 400}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// Um carro na diagonal antes da largada do oval antigo recebe a direção da
+// diagonal, não (1,0) como pelo Progresso.Proximo = 0 (D23), e o Progresso não
+// muda o resultado.
+func TestDirPistaNaDiagonalAntesDaLargada(t *testing.T) {
+	p := ovalAntigo(t)
+	cfg := ConfigPadrao()
+	diag := Vec2{1, -1}.Norm() // (100,400) -> (200,300)
+	c := carroEm(Vec2{188, 375}, 0)
+	ref := Ler(c, p, cfg).DirPista
+	if d := ref[0]; d.Sub(diag).Len() > 1e-6 {
+		t.Errorf("DirPista[0] = %v, quer paralelo à diagonal %v", d, diag)
+	}
+	for _, prox := range []int{0, 1, 7, len(p.Centro) - 1, -3, 1000} {
+		c.Progresso = Progresso{Proximo: prox, Voltas: prox % 3, Distancia: float64(prox) * 17}
+		if got := Ler(c, p, cfg).DirPista; got != ref {
+			t.Errorf("Progresso %+v: DirPista = %v, quer %v (independe de Progresso)", c.Progresso, got, ref)
+		}
+	}
+}
+
+// AvancoNaLinha: > 0 andando no sentido da pista (antes e depois da largada),
+// < 0 de ré, ≈ 0 parado, e a soma de uma volta é ≈ Comprimento (D23).
+func TestAvancoNaLinha(t *testing.T) {
+	for _, p := range []*Pista{carregarOval(t), ovalAntigo(t)} {
+		// Parado.
+		q := Vec2{188, 375}
+		if a := AvancoNaLinha(p, q, q); a != 0 {
+			t.Errorf("%s: parado deu %v, quer 0", p.Nome, a)
+		}
+		// Sobre a linha central: cada passo de ~5 px no sentido da pista dá > 0
+		// (inclusive ao cruzar a largada e a volta do índice) e de ré dá < 0; a
+		// soma de uma volta é o comprimento.
+		var soma, somaRe float64
+		passos := int(p.Comprimento / 5)
+		ponto := func(i int) Vec2 { return pontoDaLinha(p, float64(i)*p.Comprimento/float64(passos)) }
+		for i := 0; i < passos; i++ {
+			a := AvancoNaLinha(p, ponto(i), ponto(i+1))
+			b := AvancoNaLinha(p, ponto(i+1), ponto(i))
+			if a <= 0 || b >= 0 {
+				t.Fatalf("%s: passo %d: avanço %v, de ré %v; quer > 0 e < 0", p.Nome, i, a, b)
+			}
+			soma += a
+			somaRe += b
+		}
+		if math.Abs(soma-p.Comprimento) > 1 || math.Abs(somaRe+p.Comprimento) > 1 {
+			t.Errorf("%s: soma de uma volta = %v e de ré = %v, quer ±%v", p.Nome, soma, somaRe, p.Comprimento)
+		}
+	}
+	// Fora da linha central: andar 10 px para +x na diagonal (-x, +y) do oval
+	// antigo, que aponta para (1,-1): avança 10/√2 px.
+	p := ovalAntigo(t)
+	if a := AvancoNaLinha(p, Vec2{150, 350}, Vec2{160, 350}); math.Abs(a-10/math.Sqrt2) > 1e-6 {
+		t.Errorf("diagonal: avanço = %v, quer %v", a, 10/math.Sqrt2)
+	}
+	if AvancoNaLinha(nil, Vec2{}, Vec2{1, 1}) != 0 {
+		t.Error("pista nil: quer 0")
+	}
+}
+
+// pontoDaLinha é o ponto da linha central a s px de Centro[0] (0 ≤ s ≤ Comprimento).
+func pontoDaLinha(p *Pista, s float64) Vec2 {
+	n := len(p.Centro)
+	j := min(int(s/p.Passo), n-1)
+	f := (s - float64(j)*p.Passo) / p.Passo
+	a, b := p.Centro[j], p.Centro[(j+1)%n]
+	return a.Add(b.Sub(a).Scale(f))
 }
 
 func TestRaiosSensores(t *testing.T) {

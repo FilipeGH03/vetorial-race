@@ -33,7 +33,7 @@ func area(p []Vec2) float64 {
 
 func TestOvalCarrega(t *testing.T) {
 	p := carregarOval(t)
-	if p.Nome != "oval" || p.Largura != 90 || len(p.Pontos) != 6 {
+	if p.Nome != "oval" || p.Largura != 90 || len(p.Pontos) != 7 {
 		t.Fatalf("cabeçalho: nome=%q largura=%v pontos=%d", p.Nome, p.Largura, len(p.Pontos))
 	}
 	n := len(p.Centro)
@@ -130,11 +130,11 @@ func TestOvalCheckpoints(t *testing.T) {
 			t.Errorf("checkpoint %d mede %v, want ≥ %v", i, l, p.Largura)
 		}
 	}
-	// Largada: atravessa a pista no primeiro ponto do arquivo, (200,300), com a
+	// Largada: atravessa a pista no primeiro ponto do arquivo, (400,300), no meio da reta de baixo, com a
 	// parede esquerda por cima (a pista anda para +x ali).
 	cp0 := p.Checkpoints[0]
-	if m := cp0.A.Add(cp0.B).Scale(0.5); !perto(m.X, 200) || !perto(m.Y, 300) {
-		t.Errorf("meio do checkpoint 0 = %v, want (200,300)", m)
+	if m := cp0.A.Add(cp0.B).Scale(0.5); !perto(m.X, 400) || !perto(m.Y, 300) {
+		t.Errorf("meio do checkpoint 0 = %v, want (400,300)", m)
 	}
 	if cp0.A.Y <= 300 || cp0.B.Y >= 300 {
 		t.Errorf("checkpoint 0 = %v, want ParedeEsq acima e ParedeDir abaixo", cp0)

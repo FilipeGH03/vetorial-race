@@ -2,6 +2,7 @@ package sim
 
 import (
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -33,6 +34,31 @@ func TestLargadaOvalRealDeslocadaLarguras(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+// O oval de exemplo larga no meio da reta de baixo (D23): Largada(oval, 6) põe
+// todas as filas na reta (y entre as paredes, x antes da largada e depois do
+// fim da curva anterior, apontados para +x), e o trecho da linha central mais
+// perto de cada carro é a reta.
+func TestLargadaOvalNoMeioDaRetaDeBaixo(t *testing.T) {
+	p := carregarOval(t)
+	cp0 := p.Checkpoints[0]
+	if m := cp0.A.Add(cp0.B).Scale(0.5); m.Sub(Vec2{400, 300}).Len() > 1e-6 {
+		t.Fatalf("largada em %v, quer o meio da reta de baixo (400,300)", m)
+	}
+	carros := Largada(p, 6)
+	conferirLargada(t, p, 6, carros)
+	for i, c := range carros {
+		if c.Pos.X <= 200+FolgaLargada || c.Pos.X >= 400 || math.Abs(c.Pos.Y-300) > p.Largura/2-FolgaLargada {
+			t.Errorf("carro %d em %v: fora da reta de baixo antes da largada", i, c.Pos)
+		}
+		if a := c.Angulo(); math.Abs(a) > 1e-9 {
+			t.Errorf("carro %d aponta para %v, quer 0 (+x)", i, a)
+		}
+		if d := Ler(&carros[i], p, ConfigPadrao()).DirPista[0]; d.Sub(Vec2{1, 0}).Len() > 1e-9 {
+			t.Errorf("carro %d: DirPista[0] = %v, quer (1,0)", i, d)
 		}
 	}
 }
