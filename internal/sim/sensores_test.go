@@ -34,48 +34,78 @@ func distParede(p *Pista, q Vec2) float64 {
 	return d
 }
 
-func TestSensoresLateraisNaRetaDoOval(t *testing.T) {
+// angRad é o ângulo do sensor k em radianos: k·360/7 graus a partir de +x (D20).
+func angRad(k int) float64 { return 2 * math.Pi * float64(k) / NumSensores }
+
+func TestSensoresFixosNoMundoNaRetaDoOval(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
-	// Reta de baixo do oval: de (200,300) a (600,300), no sentido +x.
+	// Reta de baixo do oval: de (200,300) a (600,300); paredes em y = 345 e y = 255.
 	c := carroEm(Vec2{400, 300}, 0)
 	l := Ler(c, p, cfg)
-	want := (p.Largura / 2) / cfg.AlcanceSensor // 45/300 = 0,15
-	for _, i := range []int{0, 6} {             // -90 e +90 graus
-		if math.Abs(l.Sensores[i]-want) > 1e-9 {
-			t.Errorf("sensor %d (%v°) = %v, quer %v", i, angulosSensores[i], l.Sensores[i], want)
+	meia := p.Largura / 2
+	want := meia / cfg.AlcanceSensor // 45/300 = 0,15
+	// k = 2 (~103°) e k = 5 (~257°) apontam quase para cima e para baixo.
+	for _, k := range []int{2, 5} {
+		if math.Abs(l.Sensores[k]-want)/want > 0.03 {
+			t.Errorf("sensor %d (%.1f°) = %v, quer ≈ %v", k, angulosSensores[k], l.Sensores[k], want)
 		}
 	}
-	// ±45° batem a meia/sen(45°) do centro.
-	want45 := (p.Largura / 2) / math.Sin(math.Pi/4) / cfg.AlcanceSensor
-	for _, i := range []int{1, 5} {
-		if math.Abs(l.Sensores[i]-want45) > 1e-9 {
-			t.Errorf("sensor %d (%v°) = %v, quer %v", i, angulosSensores[i], l.Sensores[i], want45)
+	// Os que cruzam a reta (k = 1..6) batem a meia/|sen θ| do centro.
+	for k := 1; k < NumSensores; k++ {
+		w := meia / math.Abs(math.Sin(angRad(k))) / cfg.AlcanceSensor
+		if math.Abs(l.Sensores[k]-w) > 1e-9 {
+			t.Errorf("sensor %d (%.1f°) = %v, quer %v", k, angulosSensores[k], l.Sensores[k], w)
 		}
 	}
-	for i, s := range l.Sensores {
+	for k, s := range l.Sensores {
 		if !(s >= 0 && s <= 1) {
-			t.Errorf("sensor %d = %v fora de [0,1]", i, s)
+			t.Errorf("sensor %d = %v fora de [0,1]", k, s)
 		}
 	}
-	// A frente (0°) bate na parede de fora da curva, antes do alcance.
-	if !(l.Sensores[3] > want && l.Sensores[3] < 1) {
-		t.Errorf("sensor da frente = %v, quer entre %v e 1", l.Sensores[3], want)
+	// k = 0 (+x) segue a reta e bate na parede de fora da curva, antes do alcance.
+	if !(l.Sensores[0] > want && l.Sensores[0] < 1) {
+		t.Errorf("sensor 0 (+x) = %v, quer entre %v e 1", l.Sensores[0], want)
+	}
+}
+
+// Girar o ângulo do carro não muda sensor nenhum nem DirPista (D20).
+func TestLeituraNaoMudaComOAnguloDoCarro(t *testing.T) {
+	p := carregarOval(t)
+	cfg := ConfigPadrao()
+	ref := Ler(carroEm(Vec2{400, 320}, 0), p, cfg)
+	for _, a := range []float64{0.3, math.Pi / 2, math.Pi, -2.2, 2 * math.Pi, 10 * math.Pi} {
+		l := Ler(carroEm(Vec2{400, 320}, a), p, cfg)
+		if l.Sensores != ref.Sensores {
+			t.Errorf("ângulo %v: sensores %v, quer %v", a, l.Sensores, ref.Sensores)
+		}
+		if l.DirPista != ref.DirPista {
+			t.Errorf("ângulo %v: DirPista %v, quer %v", a, l.DirPista, ref.DirPista)
+		}
+		if l.Angulo != a {
+			t.Errorf("Angulo = %v, quer %v", l.Angulo, a)
+		}
+	}
+	// Os raios (para a tela de treino) também não giram.
+	r0 := RaiosSensores(carroEm(Vec2{400, 320}, 0), p, cfg)
+	r1 := RaiosSensores(carroEm(Vec2{400, 320}, 1.234), p, cfg)
+	if r0 != r1 {
+		t.Errorf("RaiosSensores muda com o ângulo do carro: %v e %v", r0, r1)
 	}
 }
 
 func TestSensorSemParedeDaUm(t *testing.T) {
 	p := pistaRetangulo(t)
 	cfg := ConfigPadrao()
-	c := carroEm(Vec2{1000, 0}, 0) // meio da reta de baixo, para +x
+	c := carroEm(Vec2{1000, 0}, 0) // meio da reta de baixo
 	l := Ler(c, p, cfg)
-	if l.Sensores[3] != 1 {
-		t.Errorf("sensor da frente sem parede = %v, quer 1", l.Sensores[3])
+	if l.Sensores[0] != 1 {
+		t.Errorf("sensor 0 (+x) sem parede = %v, quer 1", l.Sensores[0])
 	}
-	// Os outros batem: o mais aberto que não é lateral (±20°) alcança 45/sen(20°) ≈ 131 px.
-	for _, i := range []int{0, 1, 2, 4, 5, 6} {
-		if l.Sensores[i] >= 1 {
-			t.Errorf("sensor %d (%v°) = %v, quer < 1", i, angulosSensores[i], l.Sensores[i])
+	// Os outros cruzam a reta e batem a 45/|sen θ| do centro, bem antes do alcance.
+	for k := 1; k < NumSensores; k++ {
+		if l.Sensores[k] >= 1 {
+			t.Errorf("sensor %d (%.1f°) = %v, quer < 1", k, angulosSensores[k], l.Sensores[k])
 		}
 	}
 
@@ -97,7 +127,8 @@ func TestSensorSemParedeDaUm(t *testing.T) {
 func TestLeituraUsaAnguloDoCarro(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
-	// Andando para +x, mas com o ângulo guardado para +y: a leitura segue c.Angulo().
+	// Andando para +x, mas com o ângulo guardado para +y: Angulo segue c.Angulo()
+	// e Vel/Modulo seguem o carro; os sensores não dependem do ângulo (D20).
 	c := carroEm(Vec2{400, 300}, math.Pi/2)
 	c.Vel = Vec2{30, -40}
 	l := Ler(c, p, cfg)
@@ -107,14 +138,64 @@ func TestLeituraUsaAnguloDoCarro(t *testing.T) {
 	if l.Vel != c.Vel || l.Modulo != 50 {
 		t.Errorf("Vel = %v, Modulo = %v; quer %v e 50", l.Vel, l.Modulo, c.Vel)
 	}
-	// Virado para +y, o raio da frente bate na parede de dentro (y = 345) e os
-	// laterais (±90°) apontam para ±x, ao longo da reta.
-	want := (p.Largura / 2) / cfg.AlcanceSensor
-	if math.Abs(l.Sensores[3]-want) > 1e-9 {
-		t.Errorf("sensor da frente virado para +y = %v, quer %v", l.Sensores[3], want)
+	if ref := Ler(carroEm(Vec2{400, 300}, 0), p, cfg); l.Sensores != ref.Sensores {
+		t.Errorf("sensores %v mudaram com o ângulo; quer %v", l.Sensores, ref.Sensores)
 	}
-	if l.Sensores[0] <= want || l.Sensores[6] <= want {
-		t.Errorf("laterais ao longo da reta = %v e %v, quer > %v", l.Sensores[0], l.Sensores[6], want)
+}
+
+// DirPista na reta de baixo do oval é (1,0) nos dois vetores; numa quina os dois
+// diferem (D20).
+func TestDirPistaRetaEQuinaDoOval(t *testing.T) {
+	p := carregarOval(t)
+	cfg := ConfigPadrao()
+	c := carroEm(Vec2{400, 300}, 0)
+	c.Progresso.Proximo = 3 // checkpoints 3..9 ainda na reta (200,300)-(600,300)
+	l := Ler(c, p, cfg)
+	for j, d := range l.DirPista {
+		if math.Abs(d.X-1) > 1e-9 || math.Abs(d.Y) > 1e-9 {
+			t.Errorf("reta: DirPista[%d] = %v, quer (1,0)", j, d)
+		}
+	}
+	// Perto de (600,300), onde a pista vira para (700,400): o próximo trecho ainda
+	// é reto e 5 checkpoints adiante já é a diagonal.
+	c.Progresso.Proximo = 18
+	l = Ler(c, p, cfg)
+	if l.DirPista[0].Sub(l.DirPista[1]).Len() < 0.1 {
+		t.Errorf("quina: DirPista = %v, quer vetores diferentes", l.DirPista)
+	}
+	if d := l.DirPista[0]; math.Abs(d.X-1) > 1e-9 || math.Abs(d.Y) > 1e-9 {
+		t.Errorf("quina: DirPista[0] = %v, quer (1,0)", d)
+	}
+}
+
+// DirPista segue a fórmula do contrato (D20) em qualquer pista e qualquer
+// Proximo, inclusive além de m (dá a volta), e são sempre vetores unitários.
+func TestDirPistaFormulaEUnitarios(t *testing.T) {
+	cfg := ConfigPadrao()
+	for _, p := range pistasDeForma(t) {
+		m := len(p.Centro)
+		for _, i := range []int{0, 1, 2, m / 2, m - 7, m - 6, m - 2, m - 1, m, m + 3, -1} {
+			c := carroEm(p.Centro[0], 0)
+			c.Progresso.Proximo = i
+			l := Ler(c, p, cfg)
+			im := ((i % m) + m) % m
+			want := [2]Vec2{
+				p.Centro[(im+1)%m].Sub(p.Centro[im]).Norm(),
+				p.Centro[(im+6)%m].Sub(p.Centro[(im+5)%m]).Norm(),
+			}
+			for j, d := range l.DirPista {
+				if math.Abs(d.Len()-1) > 1e-9 {
+					t.Errorf("%s, Proximo %d: |DirPista[%d]| = %v, quer 1", p.Nome, i, j, d.Len())
+				}
+				if d.Sub(want[j]).Len() > 1e-12 {
+					t.Errorf("%s, Proximo %d: DirPista[%d] = %v, quer %v", p.Nome, i, j, d, want[j])
+				}
+			}
+		}
+	}
+	// Sem pista: vetores nulos, sem pânico.
+	if l := Ler(carroEm(Vec2{}, 0), nil, cfg); l.DirPista != ([2]Vec2{}) {
+		t.Errorf("pista nil: DirPista = %v, quer nulos", l.DirPista)
 	}
 }
 
@@ -138,7 +219,7 @@ func TestRaiosSensores(t *testing.T) {
 				if math.Abs(r.B.Sub(r.A).Len()-s*cfg.AlcanceSensor) > 1e-6 {
 					t.Errorf("%s, ponto %d: raio %d mede %v, sensor diz %v", p.Nome, i, k, r.B.Sub(r.A).Len(), s*cfg.AlcanceSensor)
 				}
-				wantAng := c.Angulo() + angulosSensores[k]*math.Pi/180
+				wantAng := angRad(k)
 				if d := r.B.Sub(r.A); math.Abs(math.Remainder(d.Angle()-wantAng, 2*math.Pi)) > 1e-9 {
 					t.Errorf("%s, ponto %d: raio %d no ângulo %v, quer %v", p.Nome, i, k, d.Angle(), wantAng)
 				}
@@ -155,9 +236,11 @@ func TestRaiosSensores(t *testing.T) {
 }
 
 // TestSensorEmPontoRepetido mira um raio exatamente num ponto que a parede
-// repete (trecho de comprimento zero, onde o laço da quina foi cortado).
+// repete (trecho de comprimento zero, onde o laço da quina foi cortado): o carro
+// fica a 50 px do ponto, na direção oposta à de cada sensor k.
 func TestSensorEmPontoRepetido(t *testing.T) {
 	cfg := ConfigPadrao()
+	const dist = 50.0
 	achou := 0
 	for _, p := range pistasDeForma(t) {
 		for _, w := range [][]Vec2{p.ParedeEsq, p.ParedeDir} {
@@ -167,16 +250,12 @@ func TestSensorEmPontoRepetido(t *testing.T) {
 					continue
 				}
 				achou++
-				centro := p.Centro[i]
-				alvo := w[i].Sub(centro)
-				if alvo.Len() >= cfg.AlcanceSensor {
-					continue
-				}
-				c := carroEm(centro, alvo.Angle()) // sensor 3 (0°) aponta para o ponto
-				l := Ler(c, p, cfg)
-				got := l.Sensores[3] * cfg.AlcanceSensor
-				if math.IsNaN(got) || math.Abs(got-alvo.Len()) > 1e-6 {
-					t.Errorf("%s, ponto %d: sensor no ponto repetido = %v px, quer %v", p.Nome, i, got, alvo.Len())
+				for k := 0; k < NumSensores; k++ {
+					c := carroEm(w[i].Sub(direcaoSensor(k).Scale(dist)), 0) // o sensor k aponta para o ponto
+					got := Ler(c, p, cfg).Sensores[k] * cfg.AlcanceSensor
+					if math.IsNaN(got) || got > dist+1e-6 || got < distParede(p, c.Pos)-1e-6 {
+						t.Errorf("%s, ponto %d, sensor %d: %v px, quer entre %v e %v", p.Nome, i, k, got, distParede(p, c.Pos), dist)
+					}
 				}
 			}
 		}

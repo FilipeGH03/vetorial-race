@@ -39,6 +39,7 @@ type Leitura struct {
 	Vel      Vec2                 // componentes x e y
 	Modulo   float64              // |Vel|
 	Angulo   float64              // c.Angulo() (D11)
+	DirPista [2]Vec2              // D20: direção da pista à frente, vetores unitários (mundo)
 }
 
 // limiarAngulo é o módulo de Vel abaixo do qual o carro mantém o ângulo anterior.

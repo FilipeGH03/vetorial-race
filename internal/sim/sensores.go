@@ -9,15 +9,31 @@ const NumSensores = 7
 // folgaPonta dos trechos.
 const margemCaixaRaio = 1e-6
 
-// angulosSensores são os ângulos dos raios, em graus, em relação ao ângulo do
-// carro (c.Angulo()); positivo é para a esquerda (anti-horário).
-var angulosSensores = [NumSensores]float64{-90, -45, -20, 0, 20, 45, 90}
+// angulosSensores são os ângulos dos raios, em graus, a partir de +x do mundo
+// (D20): o sensor k aponta para k·360/7 graus, fixo, sem depender do ângulo do
+// carro.
+var angulosSensores = func() (a [NumSensores]float64) {
+	for k := range a {
+		a[k] = float64(k) * 360 / NumSensores
+	}
+	return a
+}()
 
-// Ler monta a Leitura do carro na pista (contrato 1.3): os 7 sensores
-// (distância até a parede / AlcanceSensor, em [0,1]; 1 se o raio não bate),
-// a velocidade, o módulo e o ângulo guardado no carro (D11).
+// dirsSensores são os vetores unitários dos raios no referencial do mundo.
+var dirsSensores = func() (d [NumSensores]Vec2) {
+	for k := range d {
+		s, c := math.Sincos(angulosSensores[k] * math.Pi / 180)
+		d[k] = Vec2{X: c, Y: s}
+	}
+	return d
+}()
+
+// Ler monta a Leitura do carro na pista (contrato 1.3, D20): os 7 sensores em
+// direções fixas do mundo (distância até a parede / AlcanceSensor, em [0,1]; 1
+// se o raio não bate), a velocidade, o módulo, o ângulo guardado no carro (D11)
+// e a direção da pista à frente (DirPista).
 func Ler(c *Carro, p *Pista, cfg Config) Leitura {
-	l := Leitura{Vel: c.Vel, Modulo: c.Vel.Len(), Angulo: c.Angulo()}
+	l := Leitura{Vel: c.Vel, Modulo: c.Vel.Len(), Angulo: c.Angulo(), DirPista: dirPista(c, p)}
 	dist := distanciasSensores(c, p, cfg.AlcanceSensor)
 	for i, d := range dist {
 		if cfg.AlcanceSensor > 0 {
@@ -36,14 +52,25 @@ func RaiosSensores(c *Carro, p *Pista, cfg Config) [NumSensores]Segmento {
 	var raios [NumSensores]Segmento
 	dist := distanciasSensores(c, p, cfg.AlcanceSensor)
 	for i, d := range dist {
-		raios[i] = Segmento{A: c.Pos, B: c.Pos.Add(direcaoSensor(c, i).Scale(d))}
+		raios[i] = Segmento{A: c.Pos, B: c.Pos.Add(direcaoSensor(i).Scale(d))}
 	}
 	return raios
 }
 
-// direcaoSensor é o vetor unitário do raio i do carro c.
-func direcaoSensor(c *Carro, i int) Vec2 {
-	return Vec2{X: 1}.Rotate(c.Angulo() + angulosSensores[i]*math.Pi/180)
+// direcaoSensor é o vetor unitário do raio i, no referencial do mundo (D20).
+func direcaoSensor(i int) Vec2 { return dirsSensores[i] }
+
+// dirPista é a direção da pista à frente do carro (D20), com m pontos em Centro
+// e i = c.Progresso.Proximo: [0] = Norm(Centro[(i+1)%m] − Centro[i]) e
+// [1] = Norm(Centro[(i+6)%m] − Centro[(i+5)%m]). Sem pista, vetores nulos.
+func dirPista(c *Carro, p *Pista) [2]Vec2 {
+	if p == nil || len(p.Centro) == 0 {
+		return [2]Vec2{}
+	}
+	m := len(p.Centro)
+	i := ((c.Progresso.Proximo % m) + m) % m
+	at := func(k int) Vec2 { return p.Centro[(i+k)%m] }
+	return [2]Vec2{at(1).Sub(at(0)).Norm(), at(6).Sub(at(5)).Norm()}
 }
 
 // distanciasSensores devolve, para cada raio, a distância do centro do carro
@@ -55,7 +82,7 @@ func distanciasSensores(c *Carro, p *Pista, alcance float64) [NumSensores]float6
 	var dirs [NumSensores]Vec2
 	for i := range dist {
 		dist[i] = alcance
-		dirs[i] = direcaoSensor(c, i)
+		dirs[i] = direcaoSensor(i)
 	}
 	if p == nil || alcance == 0 {
 		return dist

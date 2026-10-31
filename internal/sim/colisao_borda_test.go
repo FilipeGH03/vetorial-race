@@ -18,33 +18,24 @@ func pontoNaPista(rng *rand.Rand, p *Pista) Vec2 {
 	return q.Add(nor.Scale((rng.Float64()*2 - 1) * p.Largura / 2 * 0.999))
 }
 
-// Sensores com o carro fora do centro: o sinal dos ângulos importa (+90 é a
-// esquerda de quem anda, y para cima) e o ângulo do carro gira os raios.
+// Sensores com o carro fora do centro (D20): os raios são fixos no mundo, então
+// só a posição conta; o ângulo do carro não gira nada (nem fora de (-pi, pi]).
 func TestSensoresLadoEsquerdoDireito(t *testing.T) {
 	p := carregarOval(t)
 	cfg := ConfigPadrao()
-	// Reta de baixo (y = 300, +x): parede esquerda em y = 345, direita em y = 255.
-	c := carroEm(Vec2{400, 320}, 0)
-	l := Ler(c, p, cfg)
-	if got, want := l.Sensores[6]*300, 25.0; math.Abs(got-want) > 1e-6 {
-		t.Errorf("+90 graus (esquerda) = %v px, quer %v", got, want)
-	}
-	if got, want := l.Sensores[0]*300, 65.0; math.Abs(got-want) > 1e-6 {
-		t.Errorf("-90 graus (direita) = %v px, quer %v", got, want)
-	}
-	// Virado para -x (pi), a esquerda de quem anda passa a ser -y (parede em 255).
-	c = carroEm(Vec2{400, 320}, math.Pi)
-	l = Ler(c, p, cfg)
-	if got, want := l.Sensores[6]*300, 65.0; math.Abs(got-want) > 1e-6 {
-		t.Errorf("virado para -x, +90 graus = %v px, quer %v", got, want)
-	}
-	if got, want := l.Sensores[0]*300, 25.0; math.Abs(got-want) > 1e-6 {
-		t.Errorf("virado para -x, -90 graus = %v px, quer %v", got, want)
-	}
-	// Ângulo fora de (-pi, pi] (ex.: 2pi + 0, -4pi) dá a mesma leitura.
+	// Reta de baixo (y = 300): parede em y = 345 (25 px acima) e y = 255 (65 px abaixo).
+	// k = 2 aponta para cima (~103°) e k = 5 para baixo (~257°).
+	want2 := 25 / math.Sin(angRad(2))
+	want5 := 65 / math.Abs(math.Sin(angRad(5)))
 	ref := Ler(carroEm(Vec2{400, 320}, 0), p, cfg)
-	for _, a := range []float64{2 * math.Pi, -4 * math.Pi, 10 * math.Pi} {
-		l = Ler(carroEm(Vec2{400, 320}, a), p, cfg)
+	if got := ref.Sensores[2] * 300; math.Abs(got-want2) > 1e-6 {
+		t.Errorf("sensor 2 (cima) = %v px, quer %v", got, want2)
+	}
+	if got := ref.Sensores[5] * 300; math.Abs(got-want5) > 1e-6 {
+		t.Errorf("sensor 5 (baixo) = %v px, quer %v", got, want5)
+	}
+	for _, a := range []float64{math.Pi, 2 * math.Pi, -4 * math.Pi, 10 * math.Pi} {
+		l := Ler(carroEm(Vec2{400, 320}, a), p, cfg)
 		for i := range l.Sensores {
 			if math.Abs(l.Sensores[i]-ref.Sensores[i]) > 1e-9 {
 				t.Errorf("angulo %v: sensor %d = %v, quer %v", a, i, l.Sensores[i], ref.Sensores[i])
@@ -65,7 +56,7 @@ func TestSensoresContraMarchaDoRaio(t *testing.T) {
 			c := carroEm(pontoNaPista(rng, p), (rng.Float64()*2-1)*math.Pi)
 			l := Ler(c, p, cfg)
 			for i := range l.Sensores {
-				d := direcaoSensor(c, i)
+				d := direcaoSensor(i)
 				esperado := cfg.AlcanceSensor
 				for s := 0.0; s <= cfg.AlcanceSensor; s += passo {
 					if !naPista(p, c.Pos.Add(d.Scale(s))) {
