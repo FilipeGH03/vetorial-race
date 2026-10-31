@@ -1,4 +1,4 @@
-// Comando jogo abre a janela da Corrida Vetorial.
+// Comando jogo abre a janela da Corrida Vetorial: menu, partida e editor de pista.
 package main
 
 import (
@@ -11,17 +11,18 @@ import (
 )
 
 func main() {
-	pista := flag.String("pista", "pistas/oval.json", "arquivo da pista")
+	pista := flag.String("pista", "", "pista já escolhida no menu (ex.: pistas/oval.json)")
 	editar := flag.String("editar", "", "abre o editor de pista (ex.: pistas/nova.json): carrega o arquivo se existir; S salva nele")
 	flag.Parse()
+
+	ebiten.SetTPS(jogo.TPS)
+	ebiten.SetWindowSize(jogo.LarguraTela, jogo.AlturaTela)
 
 	if *editar != "" {
 		e, err := jogo.NovoEditorTela(*editar)
 		if err != nil {
 			log.Fatal(err)
 		}
-		ebiten.SetTPS(jogo.TPS)
-		ebiten.SetWindowSize(jogo.LarguraTela, jogo.AlturaTela)
 		ebiten.SetWindowTitle("Corrida Vetorial - editor de pista")
 		if err := ebiten.RunGame(e); err != nil {
 			log.Fatal(err)
@@ -29,14 +30,12 @@ func main() {
 		return
 	}
 
-	j, err := jogo.Novo(*pista)
+	a, err := jogo.NovoApp(jogo.DirPistas, *pista)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ebiten.SetTPS(jogo.TPS)
-	ebiten.SetWindowSize(jogo.LarguraTela, jogo.AlturaTela)
 	ebiten.SetWindowTitle("Corrida Vetorial")
-	if err := ebiten.RunGame(j); err != nil {
+	if err := ebiten.RunGame(a); err != nil {
 		log.Fatal(err)
 	}
 }

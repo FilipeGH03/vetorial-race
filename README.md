@@ -17,9 +17,19 @@ Precisa do Go 1.27 ou mais novo. Não precisa de compilador C no Windows.
 go run ./cmd/jogo
 ```
 
-Abre uma janela 1280x720 a 60 TPS com a pista `pistas/oval.json` e o carro na largada.
-Dirija com WASD ou as setas (duas teclas juntas dão a diagonal); bater na parede para o carro.
-Outra pista: `go run ./cmd/jogo -pista pistas/outra.json`.
+Abre uma janela 1280x720 a 60 TPS com o menu. Cima/Baixo (ou W/S) escolhem a linha, Esquerda/Direita
+(ou A/D) mudam o valor, Enter corre, Esc sai:
+
+- **Pista**: qualquer `pistas/*.json` (pista que não cabe em 1280x720 é recusada com aviso).
+- **Modo**: Voltas (vence quem completa as voltas primeiro) ou Eliminação (um laser vermelho sai da
+  largada 3 s depois do início e mata quem ficar para trás; o último vivo vence).
+- **Voltas**: 1 a 10 (padrão 3). **Carros**: 2 a 8 contando você (padrão 6: você + 5 da IA).
+
+Na corrida, WASD ou setas dirigem (duas teclas juntas dão a diagonal; bater na parede para o carro) e as
+setas vermelha (x), verde (y) e amarela (resultante) mostram a velocidade. Os outros carros são
+guiados pela rede de `cerebros/<pista>.json`; sem cérebro (ou com cérebro inválido) o jogo avisa na tela
+e a IA fica parada. Se você morre na Eliminação, a partida acaba. Ao fim aparecem o vencedor e a
+classificação: R joga de novo, Enter volta ao menu. `-pista pistas/outra.json` já escolhe a pista no menu.
 Na primeira vez o `go run` baixa as dependências sozinho.
 
 ## Editor de pista
@@ -31,8 +41,8 @@ go run ./cmd/jogo -editar pistas/minha.json
 Arraste o mouse com o botão esquerdo para desenhar a linha central (o circuito fecha sozinho e o
 sentido é o do traço). Roda do mouse ou setas cima/baixo mudam a largura (40 a 200 px). `S` salva no
 arquivo, `L` recarrega, `C` ou `Esc` limpam. Se o arquivo já existe, ele é aberto para editar.
-Pista inválida (por exemplo um oito) mostra o erro e marca o cruzamento; a pista só cabe em 1280x720.
-Depois: `go run ./cmd/jogo -pista pistas/minha.json`.
+Arquivo inválido na abertura (`-editar`) abre o editor vazio com o aviso. Pista inválida (por exemplo um oito) mostra o erro e marca o cruzamento; a pista só cabe em 1280x720.
+Depois: `go run ./cmd/jogo -pista pistas/minha.json` (ou escolha no menu).
 
 ## Treino da IA
 

@@ -38,16 +38,18 @@ type EditorTela struct {
 }
 
 // NovoEditorTela abre o editor para o arquivo caminho: se ele já existe, carrega
-// a pista para continuar editando; senão começa vazio. O nome da pista é o do
-// arquivo, sem a extensão.
+// a pista para continuar editando; senão começa vazio. Arquivo inválido (JSON
+// ruim, pista que cruza ou que não cabe na janela) não é erro: o editor abre
+// vazio com o motivo em Aviso. O nome da pista é o do arquivo, sem a extensão.
 func NovoEditorTela(caminho string) (*EditorTela, error) {
 	nome := strings.TrimSuffix(filepath.Base(caminho), filepath.Ext(caminho))
 	t := &EditorTela{E: NovoEditor(nome), Caminho: caminho}
 	if _, err := os.Stat(caminho); err == nil {
 		if err := t.E.Carregar(caminho); err != nil {
-			return nil, err
+			t.Aviso = "não abriu " + caminho + ": " + textoErro(err)
+		} else {
+			t.Aviso = "carregado: " + caminho
 		}
-		t.Aviso = "carregado: " + caminho
 	}
 	return t, nil
 }

@@ -3,6 +3,7 @@ package jogo
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"image/png"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -30,13 +31,25 @@ func Novo(caminhoPista string) (*Jogo, error) {
 	if err != nil {
 		return nil, err
 	}
-	img, err := png.Decode(bytes.NewReader(assets.CarroAzulPNG))
+	if !CabeNaTela(p) {
+		return nil, fmt.Errorf("pista %s: %w (paredes fora de %dx%d)", caminhoPista, ErrNaoCabe, LarguraTela, AlturaTela)
+	}
+	img, err := decodificarCarro()
 	if err != nil {
-		return nil, fmt.Errorf("decodificar carro_azul.png: %w", err)
+		return nil, err
 	}
 	j := NovoComPista(p)
 	j.imgCarro = ebiten.NewImageFromImage(img)
 	return j, nil
+}
+
+// decodificarCarro decodifica o sprite do carro embutido (assets/carro_azul.png).
+func decodificarCarro() (image.Image, error) {
+	img, err := png.Decode(bytes.NewReader(assets.CarroAzulPNG))
+	if err != nil {
+		return nil, fmt.Errorf("decodificar carro_azul.png: %w", err)
+	}
+	return img, nil
 }
 
 // NovoComPista monta o jogo sem sprite nem janela (usado por Novo e pelos testes).
