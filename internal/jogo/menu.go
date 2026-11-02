@@ -24,6 +24,7 @@ const (
 	CarrosPadrao = 6
 	CarrosMin    = 2
 	CarrosMax    = 8
+	SeedPadrao   = 1 // seed do treino visual quando o menu não muda
 )
 
 // Campo é a linha do menu em que o cursor está.
@@ -34,6 +35,7 @@ const (
 	CampoModo
 	CampoVoltas
 	CampoCarros
+	CampoSeed // seed do treino da IA (T)
 	numCampos
 )
 
@@ -44,7 +46,8 @@ type Menu struct {
 	Pista       int      // índice em Pistas
 	Modo        sim.Modo
 	Voltas      int
-	Carros      int // contando o jogador
+	Carros      int    // contando o jogador
+	Seed        uint64 // seed do treino visual (T); mesma seed, mesmo resultado
 	Selecao     Campo
 	Aviso       string // última mensagem (pista recusada, sem pistas)
 	DirCerebros string // pasta dos cérebros
@@ -65,6 +68,7 @@ func NovoMenu(pistas []string, preferida string) *Menu {
 		Modo:        sim.ModoVoltas,
 		Voltas:      VoltasPadrao,
 		Carros:      CarrosPadrao,
+		Seed:        SeedPadrao,
 		DirCerebros: DirCerebros,
 	}
 	if preferida != "" {
@@ -109,6 +113,12 @@ func (m *Menu) mudar(d int) {
 		m.Voltas = min(VoltasMax, max(VoltasMin, m.Voltas+d))
 	case CampoCarros:
 		m.Carros = min(CarrosMax, max(CarrosMin, m.Carros+d))
+	case CampoSeed:
+		if d < 0 && m.Seed > 0 {
+			m.Seed--
+		} else if d > 0 {
+			m.Seed++
+		}
 	}
 	m.Aviso = ""
 }
@@ -150,6 +160,7 @@ func (m *Menu) Linhas() [numCampos]string {
 		"Modo:    " + modo,
 		"Voltas:  " + voltas,
 		fmt.Sprintf("Carros:  %d (você + %d da IA)", m.Carros, m.Carros-1),
+		fmt.Sprintf("Seed do treino (T):  %d", m.Seed),
 	}
 }
 

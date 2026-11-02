@@ -82,10 +82,10 @@ func (a *App) iniciarCom(o Opcoes) error {
 // Voltar volta ao menu.
 func (a *App) Voltar() { a.Tela, a.Partida, a.Treino, a.imgPista = TelaMenu, nil, nil, nil }
 
-// IniciarTreino abre a tela de treino na pista escolhida no menu (seed 1). Se a
+// IniciarTreino abre a tela de treino na pista escolhida no menu (seed do menu). Se a
 // pista é recusada, fica no menu com o aviso.
 func (a *App) IniciarTreino() error {
-	v, err := NovoTreinoVisual(a.Menu.CaminhoPista(), a.Menu.DirCerebros, 1)
+	v, err := NovoTreinoVisual(a.Menu.CaminhoPista(), a.Menu.DirCerebros, a.Menu.Seed)
 	if err != nil {
 		a.Menu.Aviso = err.Error()
 		return err

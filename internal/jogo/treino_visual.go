@@ -207,14 +207,24 @@ func (v *TreinoVisual) CaminhoCerebro() string {
 	return filepath.Join(v.DirCerebros, v.Nome+".json")
 }
 
+// ErroNotaNaoMaior é devolvido por Salvar quando o arquivo do cérebro já existe
+// com nota igual ou maior: o arquivo fica como está.
+var ErroNotaNaoMaior = errors.New("o cérebro salvo já tem nota igual ou maior")
+
 // Salvar grava o melhor cérebro de todas as gerações no arquivo 1.4 (Rede.Salvar
-// é atômico e cria a pasta) e põe o resultado em Aviso.
+// é atômico e cria a pasta) e põe o resultado em Aviso. Só substitui um arquivo
+// existente se a nota nova for maior que a dele; senão não grava e avisa. Arquivo
+// inexistente (ou que não carrega) é gravado.
 func (v *TreinoVisual) Salvar() error {
 	if v.Melhor == nil {
 		v.Aviso = "ainda sem melhor cérebro: espere a 1ª geração terminar"
 		return ErroSemMelhor
 	}
 	caminho := v.CaminhoCerebro()
+	if atual, err := ia.CarregarRede(caminho); err == nil && !(v.MelhorNota > atual.Pontuacao) {
+		v.Aviso = fmt.Sprintf("não salvou: %s já tem nota %.1f e a nova é %.1f (precisa ser maior)", caminho, atual.Pontuacao, v.MelhorNota)
+		return fmt.Errorf("%w (%.1f >= %.1f)", ErroNotaNaoMaior, atual.Pontuacao, v.MelhorNota)
+	}
 	if err := v.Melhor.Salvar(caminho); err != nil {
 		v.Aviso = "não salvou: " + err.Error()
 		return err

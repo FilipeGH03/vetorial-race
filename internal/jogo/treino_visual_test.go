@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"vetorial-race/internal/ia"
@@ -303,5 +304,54 @@ func BenchmarkTreinoVisualPasso(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		v.Passo()
+	}
+}
+
+// salvarNotaExistente grava em v.CaminhoCerebro() uma rede com a nota dada.
+func salvarNotaExistente(t *testing.T, v *TreinoVisual, nota float64) {
+	t.Helper()
+	r := v.Melhor.Copia()
+	r.Pontuacao = nota
+	if err := r.Salvar(v.CaminhoCerebro()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTreinoVisualSalvarNotaMenorNaoGravaEAvisa(t *testing.T) {
+	v := novoVisual(t, 1)
+	rodarGeracao(t, v)
+	salvarNotaExistente(t, v, v.MelhorNota+100)
+	antes, _ := os.ReadFile(v.CaminhoCerebro())
+	if err := v.Salvar(); !errors.Is(err, ErroNotaNaoMaior) {
+		t.Fatalf("Salvar com nota menor: %v", err)
+	}
+	depois, _ := os.ReadFile(v.CaminhoCerebro())
+	if string(antes) != string(depois) {
+		t.Error("o arquivo mudou")
+	}
+	if !strings.Contains(v.Aviso, "não salvou") {
+		t.Errorf("aviso %q", v.Aviso)
+	}
+}
+
+func TestTreinoVisualSalvarNotaIgualNaoGrava(t *testing.T) {
+	v := novoVisual(t, 1)
+	rodarGeracao(t, v)
+	salvarNotaExistente(t, v, v.MelhorNota)
+	if err := v.Salvar(); !errors.Is(err, ErroNotaNaoMaior) {
+		t.Fatalf("Salvar com nota igual: %v", err)
+	}
+}
+
+func TestTreinoVisualSalvarNotaMaiorGrava(t *testing.T) {
+	v := novoVisual(t, 1)
+	rodarGeracao(t, v)
+	salvarNotaExistente(t, v, v.MelhorNota-100)
+	if err := v.Salvar(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ia.CarregarRede(v.CaminhoCerebro())
+	if err != nil || r.Pontuacao != v.MelhorNota {
+		t.Fatalf("nota do arquivo %v (%v), quero %v", r, err, v.MelhorNota)
 	}
 }

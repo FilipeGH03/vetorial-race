@@ -101,7 +101,7 @@ func TestMenuLimitesECampos(t *testing.T) {
 		t.Errorf("cursor: %d", m.Selecao)
 	}
 	m.Cima()
-	if m.Selecao != CampoCarros {
+	if m.Selecao != CampoSeed {
 		t.Errorf("cursor: %d", m.Selecao)
 	}
 }
@@ -472,5 +472,24 @@ func TestEditorAbreVazioComArquivoInvalido(t *testing.T) {
 func TestSemAcento(t *testing.T) {
 	if got := semAcento("Eliminação: você já não é IÁ"); got != "Eliminacao: voce ja nao e IA" {
 		t.Errorf("semAcento: %q", got)
+	}
+}
+
+func TestMenuSeedEscolhivelEUsadaNoTreino(t *testing.T) {
+	m := NovoMenu(nil, "")
+	if m.Seed != SeedPadrao {
+		t.Fatalf("seed padrão %d", m.Seed)
+	}
+	m.Selecao = CampoSeed
+	m.Direita()
+	m.Direita()
+	if m.Seed != SeedPadrao+2 || !strings.Contains(m.Linhas()[CampoSeed], "3") {
+		t.Errorf("seed %d, linha %q", m.Seed, m.Linhas()[CampoSeed])
+	}
+	for i := 0; i < 10; i++ {
+		m.Esquerda()
+	}
+	if m.Seed != 0 {
+		t.Errorf("seed mín: %d", m.Seed)
 	}
 }
