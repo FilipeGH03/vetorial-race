@@ -69,11 +69,11 @@ func TestPontuacao(t *testing.T) {
 	if got := Pontuacao(0, 0, 0, 0); got != 0 {
 		t.Errorf("parado: %v", got)
 	}
-	// D23: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 5·batidas.
-	if got := Pontuacao(2000, 1, 40, 3); got != 2000+1000+20*20-5*3 {
+	// D25: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 50·batidas.
+	if got := Pontuacao(2000, 1, 40, 3); got != 2000+1000+20*20-50*3 {
 		t.Errorf("1 volta em 40 s com 3 batidas: %v", got)
 	}
-	if got := Pontuacao(300, 0, 0, 4); got != 300-20 {
+	if got := Pontuacao(300, 0, 0, 4); got != 300-200 {
 		t.Errorf("4 batidas sem volta: %v", got)
 	}
 }

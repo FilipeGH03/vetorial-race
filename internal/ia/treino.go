@@ -19,13 +19,13 @@ import (
 // média das NLargadas notas. A simulação não sorteia nada, então a nota só depende da rede e da
 // pista: avaliar em goroutines dá o mesmo resultado que em série.
 
-// Parâmetros da pontuação do treino (D23).
+// Parâmetros da pontuação do treino (D23, D25).
 const (
 	TempoMaxTreino = 60.0   // s que cada indivíduo dirige, no máximo (D5)
 	TicksParado    = 60     // ticks (1 s) sem avançar no sentido da pista (sim.AvancoNaLinha) que encerram o indivíduo (D23)
 	BonusVolta     = 1000.0 // pontos por volta completa
 	BonusTempo     = 20.0   // pontos por segundo que sobram de TempoMaxTreino quando completa a 1ª volta
-	PenaBatida     = 5.0    // pontos tirados por batida na parede (D23)
+	PenaBatida     = 50.0   // pontos tirados por tick com batida na parede (D25; era 5)
 	NLargadas      = 6      // posições de sim.Largada(p, NLargadas) de que cada indivíduo larga (D22)
 )
 
@@ -43,7 +43,7 @@ type Resultado struct {
 	Parou      bool    // encerrado por TicksParado sem avançar (senão, acabou o tempo)
 }
 
-// Pontuacao calcula a nota do treino (D23): Distancia + BonusVolta·voltas +
+// Pontuacao calcula a nota do treino (D25): Distancia + BonusVolta·voltas +
 // BonusTempo·(TempoMaxTreino − tempo da 1ª volta) − PenaBatida·batidas. O
 // bônus de tempo só vale quando completa a volta (tempo menor vale mais).
 func Pontuacao(distancia float64, voltas int, tempoVolta float64, batidas int) float64 {
