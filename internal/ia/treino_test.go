@@ -57,24 +57,24 @@ func TestNovoTreinoSemPista(t *testing.T) {
 }
 
 func TestPontuacao(t *testing.T) {
-	if got := Pontuacao(500, 0, 0, 0); got != 500 {
+	if got := Pontuacao(500, 0, 0, 0, 0); got != 500 {
 		t.Errorf("sem volta: %v", got)
 	}
-	if got := Pontuacao(1500, 1, 30, 0); got != 1500+BonusVolta+BonusTempo*30 {
+	if got := Pontuacao(1500, 1, 30, 0, 0); got != 1500+BonusVolta+BonusTempo*30 {
 		t.Errorf("1 volta em 30 s: %v", got)
 	}
-	if Pontuacao(1500, 1, 20, 0) <= Pontuacao(1500, 1, 30, 0) {
+	if Pontuacao(1500, 1, 20, 0, 0) <= Pontuacao(1500, 1, 30, 0, 0) {
 		t.Error("volta mais rápida deveria valer mais")
 	}
-	if got := Pontuacao(0, 0, 0, 0); got != 0 {
+	if got := Pontuacao(0, 0, 0, 0, 0); got != 0 {
 		t.Errorf("parado: %v", got)
 	}
-	// D25: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 50·batidas.
-	if got := Pontuacao(2000, 1, 40, 3); got != 2000+1000+20*20-50*3 {
-		t.Errorf("1 volta em 40 s com 3 batidas: %v", got)
+	// D26: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 300·batidas novas − 50·ticks batidos.
+	if got := Pontuacao(2000, 1, 40, 2, 3); got != 2000+1000+20*20-300*2-50*3 {
+		t.Errorf("1 volta em 40 s com 2 batidas novas e 3 ticks batidos: %v", got)
 	}
-	if got := Pontuacao(300, 0, 0, 4); got != 300-200 {
-		t.Errorf("4 batidas sem volta: %v", got)
+	if got := Pontuacao(300, 0, 0, 1, 4); got != 300-300-200 {
+		t.Errorf("1 batida nova de 4 ticks sem volta: %v", got)
 	}
 }
 
@@ -137,7 +137,7 @@ func TestRodarRetoBateEParaSemMorrer(t *testing.T) {
 		if !res.Parou || res.Ticks >= tr.MaxTicks || res.Batidas == 0 {
 			t.Fatalf("largada %d: deveria bater e ser encerrada por ficar parada: %+v", k, res)
 		}
-		if res.Voltas != 0 || res.Pontuacao != res.Distancia-PenaBatida*float64(res.Batidas) {
+		if res.Voltas != 0 || res.Pontuacao != Pontuacao(res.Distancia, 0, 0, res.BatidasNovas, res.Batidas) {
 			t.Fatalf("largada %d: resultado %+v", k, res)
 		}
 	}
@@ -151,7 +151,7 @@ func TestRodarRetoBateEParaSemMorrer(t *testing.T) {
 // chegar à parede: Batidas pode ser 0.)
 func TestRodarDeReNaoPontua(t *testing.T) {
 	for k, res := range treinoOval(t).Rodar(redeFixa(-2, 2, 0)).Largadas {
-		if !res.Parou || res.Distancia != 0 || res.Pontuacao != -PenaBatida*float64(res.Batidas) {
+		if !res.Parou || res.Distancia != 0 || res.Pontuacao != Pontuacao(0, 0, 0, res.BatidasNovas, res.Batidas) {
 			t.Fatalf("de ré, largada %d: %+v", k, res)
 		}
 	}

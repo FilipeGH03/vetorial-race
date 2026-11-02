@@ -82,8 +82,8 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		}
 		r, nota := pop.Melhor()
 		b := res[pop.Ranking()[0]]
-		fmt.Printf("geração %3d  melhor %9.1f  distância média %7.0f  voltas (mín) %2d  com volta %d/%d  1ª volta (pior) %5s  batidas %4d  paradas %d  (%.1fs)\n",
-			pop.Geracao, nota, distanciaMedia(b), b.VoltasMin(), b.ComVolta(), ia.NLargadas, tempoVolta(b), batidas(b), paradas(b),
+		fmt.Printf("geração %3d  melhor %9.1f  distância média %7.0f  voltas (mín) %2d  com volta %d/%d  1ª volta (pior) %5s  batidas %4d (novas %3d)  paradas %d  (%.1fs)\n",
+			pop.Geracao, nota, distanciaMedia(b), b.VoltasMin(), b.ComVolta(), ia.NLargadas, tempoVolta(b), batidas(b), batidasNovas(b), paradas(b),
 			time.Since(ini).Seconds())
 		if primeiraVolta < 0 && algumaVolta(res) {
 			primeiraVolta = pop.Geracao
@@ -148,6 +148,15 @@ func batidas(a ia.Avaliacao) int {
 	n := 0
 	for _, r := range a.Largadas {
 		n += r.Batidas
+	}
+	return n
+}
+
+// batidasNovas soma as batidas novas (D26) das NLargadas largadas.
+func batidasNovas(a ia.Avaliacao) int {
+	n := 0
+	for _, r := range a.Largadas {
+		n += r.BatidasNovas
 	}
 	return n
 }

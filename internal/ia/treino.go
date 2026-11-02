@@ -19,13 +19,14 @@ import (
 // média das NLargadas notas. A simulação não sorteia nada, então a nota só depende da rede e da
 // pista: avaliar em goroutines dá o mesmo resultado que em série.
 
-// Parâmetros da pontuação do treino (D23, D25).
+// Parâmetros da pontuação do treino (D23, D26).
 const (
 	TempoMaxTreino = 60.0   // s que cada indivíduo dirige, no máximo (D5)
 	TicksParado    = 60     // ticks (1 s) sem avançar no sentido da pista (sim.AvancoNaLinha) que encerram o indivíduo (D23)
 	BonusVolta     = 1000.0 // pontos por volta completa
 	BonusTempo     = 20.0   // pontos por segundo que sobram de TempoMaxTreino quando completa a 1ª volta
-	PenaBatida     = 50.0   // pontos tirados por tick com batida na parede (D25; era 5)
+	PenaBatidaNova = 300.0  // pontos tirados por batida nova: tick batido depois de um tick sem bater, ou o 1º tick (D26)
+	PenaBatida     = 50.0   // pontos tirados por tick com batida na parede (D25, mantida pela D26)
 	NLargadas      = 6      // posições de sim.Largada(p, NLargadas) de que cada indivíduo larga (D22)
 )
 
@@ -34,20 +35,24 @@ var ErrTreino = errors.New("treino inválido")
 
 // Resultado é o que um indivíduo fez na pista partindo de uma das largadas.
 type Resultado struct {
-	Pontuacao  float64 // Pontuacao(Distancia, Voltas, TempoVolta, Batidas)
-	Distancia  float64 // Progresso.Distancia final (px)
-	Voltas     int     // voltas completas
-	TempoVolta float64 // s até completar a 1ª volta; 0 se não completou
-	Batidas    int     // ticks em que bateu na parede
-	Ticks      int     // ticks que dirigiu
-	Parou      bool    // encerrado por TicksParado sem avançar (senão, acabou o tempo)
+	Pontuacao    float64 // Pontuacao(Distancia, Voltas, TempoVolta, BatidasNovas, Batidas)
+	Distancia    float64 // Progresso.Distancia final (px)
+	Voltas       int     // voltas completas
+	TempoVolta   float64 // s até completar a 1ª volta; 0 se não completou
+	Batidas      int     // ticks em que bateu na parede
+	BatidasNovas int     // batidas novas (D26): ticks batidos logo depois de um tick sem bater (ou no 1º tick)
+	Ticks        int     // ticks que dirigiu
+	Parou        bool    // encerrado por TicksParado sem avançar (senão, acabou o tempo)
 }
 
-// Pontuacao calcula a nota do treino (D25): Distancia + BonusVolta·voltas +
-// BonusTempo·(TempoMaxTreino − tempo da 1ª volta) − PenaBatida·batidas. O
-// bônus de tempo só vale quando completa a volta (tempo menor vale mais).
-func Pontuacao(distancia float64, voltas int, tempoVolta float64, batidas int) float64 {
-	p := distancia + BonusVolta*float64(voltas) - PenaBatida*float64(batidas)
+// Pontuacao calcula a nota do treino (D26): Distancia + BonusVolta·voltas +
+// BonusTempo·(TempoMaxTreino − tempo da 1ª volta) − PenaBatidaNova·batidas
+// novas − PenaBatida·ticks batidos. O bônus de tempo só vale quando completa a
+// volta (tempo menor vale mais). Cada batida custa PenaBatidaNova uma vez, mais
+// PenaBatida por tick batido (o 1º incluído) enquanto o carro fica na parede.
+func Pontuacao(distancia float64, voltas int, tempoVolta float64, batidasNovas, ticksBatidos int) float64 {
+	p := distancia + BonusVolta*float64(voltas) -
+		PenaBatidaNova*float64(batidasNovas) - PenaBatida*float64(ticksBatidos)
 	if voltas >= 1 {
 		p += BonusTempo * max(0, TempoMaxTreino-tempoVolta)
 	}
@@ -135,7 +140,8 @@ func (t *Treino) Rodar(r *Rede) Avaliacao {
 // RodarDe põe a rede r para dirigir um carro da largada k (0 ≤ k < NLargadas)
 // até MaxTicks, ou até passar TicksParado ticks sem avançar no sentido da
 // pista (D23), e devolve o que ela fez. Cada tick: Ler, Decidir (uma vez) e
-// Avancar, como na Corrida; cada tick com Batido conta uma batida. Não altera r.
+// Avancar, como na Corrida; cada tick com Batido conta uma batida, e a batida é
+// nova quando o tick anterior não tinha Batido (D26). Não altera r.
 // O fim por ficar parado é o de Avanco.
 func (t *Treino) RodarDe(r *Rede, k int) Resultado {
 	c := t.largadas[k] // cópia
@@ -149,21 +155,24 @@ func (t *Treino) RodarDe(r *Rede, k int) Resultado {
 	}
 	res.Distancia = c.Progresso.Distancia
 	res.Voltas = c.Progresso.Voltas
-	res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.Batidas)
+	res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.BatidasNovas, res.Batidas)
 	return res
 }
 
 // Passo é o tick do treino, a regra num lugar só (usada por RodarDe e pela tela
 // de treino): Ler, Decidir (uma vez) e Avancar do carro c; conta o tick, a
-// batida, o tempo da 1ª volta e o "1 s sem avançar" (av) em res, e mantém
+// batida (e se é nova, D26), o tempo da 1ª volta e o "1 s sem avançar" (av) em res, e mantém
 // res.Distancia/Voltas em dia. Devolve true quando o indivíduo terminou (parado,
 // MaxTicks ou carro morto); nesse tick res.Pontuacao também é preenchida.
 func (t *Treino) Passo(c *sim.Carro, ctl *Controlador, av *Avanco, res *Resultado) bool {
-	antes := c.Pos
+	antes, batidoAntes := c.Pos, c.Batido // Batido do tick anterior (false na largada)
 	c.Avancar(ctl.Decidir(sim.Ler(c, t.Pista, t.Cfg)), t.Pista, t.Cfg)
 	res.Ticks++
 	if c.Batido {
 		res.Batidas++
+		if !batidoAntes {
+			res.BatidasNovas++
+		}
 	}
 	if res.TempoVolta == 0 && c.Progresso.Voltas >= 1 {
 		res.TempoVolta = float64(res.Ticks) * t.Cfg.DT
@@ -178,7 +187,7 @@ func (t *Treino) Passo(c *sim.Carro, ctl *Controlador, av *Avanco, res *Resultad
 	}
 	res.Distancia, res.Voltas = c.Progresso.Distancia, c.Progresso.Voltas
 	if fim {
-		res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.Batidas)
+		res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.BatidasNovas, res.Batidas)
 	}
 	return fim
 }

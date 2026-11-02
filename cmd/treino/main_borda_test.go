@@ -80,10 +80,12 @@ func TestSaidaPadraoFicaEmCerebros(t *testing.T) {
 	}
 }
 
-// O cérebro gravado guarda a melhor nota e ela se reproduz no jogo.
+// O cérebro gravado guarda a melhor nota e ela se reproduz no jogo. (Com as
+// penas da D26, 8 redes em 3 gerações ficavam todas em nota ≤ 0: 16 redes em 5
+// gerações já passam de 0.)
 func TestRodarNotaGravadaReproduz(t *testing.T) {
 	saida := filepath.Join(t.TempDir(), "o.json")
-	if err := rodar("../../pistas/oval.json", 3, 1, saida, "14,6,2", 8); err != nil {
+	if err := rodar("../../pistas/oval.json", 5, 1, saida, "14,6,2", 16); err != nil {
 		t.Fatal(err)
 	}
 	r, err := ia.CarregarRede(saida)

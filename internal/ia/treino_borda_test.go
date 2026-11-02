@@ -31,18 +31,22 @@ func TestRodarIgualACorridaDoJogo(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				batidas := 0
+				batidas, novas := 0, 0
 				for n := 0; n < want.Ticks && !cor.Terminada; n++ {
+					antes := cor.Carros[k].Batido
 					cor.Step()
 					if cor.Carros[k].Batido {
 						batidas++
+						if !antes {
+							novas++ // D26: batida depois de um tick sem bater
+						}
 					}
 				}
 				c := cor.Carros[k]
 				if c.Progresso.Distancia != want.Distancia || c.Progresso.Voltas != want.Voltas || cor.Tick != want.Ticks ||
-					batidas != want.Batidas || !c.Vivo {
-					t.Errorf("seed %d rede %d largada %d: corrida (dist %v, voltas %d, ticks %d, batidas %d, vivo %v), treino %+v",
-						seed, i, k, c.Progresso.Distancia, c.Progresso.Voltas, cor.Tick, batidas, c.Vivo, want)
+					batidas != want.Batidas || novas != want.BatidasNovas || !c.Vivo {
+					t.Errorf("seed %d rede %d largada %d: corrida (dist %v, voltas %d, ticks %d, batidas %d, novas %d, vivo %v), treino %+v",
+						seed, i, k, c.Progresso.Distancia, c.Progresso.Voltas, cor.Tick, batidas, novas, c.Vivo, want)
 				}
 			}
 		}
