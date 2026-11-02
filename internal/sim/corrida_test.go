@@ -410,14 +410,35 @@ func rodar600(t *testing.T, p *Pista, n int) time.Duration {
 	return melhor
 }
 
-// 600 ticks sem janela rodam em menos de 50 ms (4 carros, cada um com os 7
-// sensores lidos a cada tick). Com 8 carros o tempo só é informado.
+// D24: 600 ticks (10 s de jogo) com 8 carros, cada um lendo os 7 sensores a
+// cada tick, rodam em menos de 500 ms (>= 20x de folga sobre o tempo real). A
+// medida fina é BenchmarkCorrida8Carros.
 func TestCorridaRapida(t *testing.T) {
 	p := carregarOval(t)
-	t.Logf("600 ticks com 8 carros em %v", rodar600(t, p, 8))
-	if dur := rodar600(t, p, 4); dur > 50*time.Millisecond {
-		t.Errorf("600 ticks com 4 carros levaram %v, quer < 50 ms", dur)
+	if dur := rodar600(t, p, 8); dur > 500*time.Millisecond {
+		t.Errorf("600 ticks com 8 carros levaram %v, quer < 500 ms", dur)
 	} else {
-		t.Logf("600 ticks com 4 carros em %v", dur)
+		t.Logf("600 ticks com 8 carros em %v", dur)
+	}
+}
+
+// BenchmarkCorrida8Carros mede 600 ticks de uma corrida com 8 carros.
+func BenchmarkCorrida8Carros(b *testing.B) {
+	p, err := CarregarPista(caminhoOval)
+	if err != nil {
+		b.Fatalf("CarregarPista(oval): %v", err)
+	}
+	b.ResetTimer()
+	for k := 0; k < b.N; k++ {
+		b.StopTimer()
+		ctls := make([]Controlador, 8)
+		for i := range ctls {
+			ctls[i] = &seguidor{p: p, vAlvo: 120 + 10*float64(i)}
+		}
+		r := novaCorridaComSeguidores(b, p, ModoVoltas, 100, ctls...)
+		b.StartTimer()
+		for i := 0; i < 600; i++ {
+			r.Step()
+		}
 	}
 }
