@@ -143,17 +143,7 @@ func (t *Treino) RodarDe(r *Rede, k int) Resultado {
 	res := Resultado{}
 	var av Avanco
 	for res.Ticks < t.MaxTicks && c.Vivo {
-		antes := c.Pos
-		c.Avancar(ctl.Decidir(sim.Ler(&c, t.Pista, t.Cfg)), t.Pista, t.Cfg)
-		res.Ticks++
-		if c.Batido {
-			res.Batidas++
-		}
-		if res.TempoVolta == 0 && c.Progresso.Voltas >= 1 {
-			res.TempoVolta = float64(res.Ticks) * t.Cfg.DT
-		}
-		if av.Tick(t.Pista, antes, c.Pos) {
-			res.Parou = true
+		if t.Passo(&c, ctl, &av, &res) {
 			break
 		}
 	}
@@ -161,6 +151,36 @@ func (t *Treino) RodarDe(r *Rede, k int) Resultado {
 	res.Voltas = c.Progresso.Voltas
 	res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.Batidas)
 	return res
+}
+
+// Passo é o tick do treino, a regra num lugar só (usada por RodarDe e pela tela
+// de treino): Ler, Decidir (uma vez) e Avancar do carro c; conta o tick, a
+// batida, o tempo da 1ª volta e o "1 s sem avançar" (av) em res, e mantém
+// res.Distancia/Voltas em dia. Devolve true quando o indivíduo terminou (parado,
+// MaxTicks ou carro morto); nesse tick res.Pontuacao também é preenchida.
+func (t *Treino) Passo(c *sim.Carro, ctl *Controlador, av *Avanco, res *Resultado) bool {
+	antes := c.Pos
+	c.Avancar(ctl.Decidir(sim.Ler(c, t.Pista, t.Cfg)), t.Pista, t.Cfg)
+	res.Ticks++
+	if c.Batido {
+		res.Batidas++
+	}
+	if res.TempoVolta == 0 && c.Progresso.Voltas >= 1 {
+		res.TempoVolta = float64(res.Ticks) * t.Cfg.DT
+	}
+	fim := false
+	if av.Tick(t.Pista, antes, c.Pos) {
+		res.Parou = true
+		fim = true
+	}
+	if res.Ticks >= t.MaxTicks || !c.Vivo {
+		fim = true
+	}
+	res.Distancia, res.Voltas = c.Progresso.Distancia, c.Progresso.Voltas
+	if fim {
+		res.Pontuacao = Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.Batidas)
+	}
+	return fim
 }
 
 // Avanco aplica a um carro a regra do treino de "1 s sem avançar" (D23).

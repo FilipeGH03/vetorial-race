@@ -145,30 +145,10 @@ func (v *TreinoVisual) Passo() {
 	}
 }
 
-// passoIndividuo é um tick de ia.Treino.RodarDe: Ler, Decidir (uma vez) e
-// Avancar; cada tick com Batido conta uma batida.
+// passoIndividuo é um tick de ia.Treino.RodarDe: a regra é ia.Treino.Passo.
 func (v *TreinoVisual) passoIndividuo(ind *Individuo) {
-	t := v.Treino
-	c, res := &ind.Carro, &ind.Res
-	antes := c.Pos
-	c.Avancar(ind.ctl.Decidir(sim.Ler(c, t.Pista, t.Cfg)), t.Pista, t.Cfg)
-	res.Ticks++
-	if c.Batido {
-		res.Batidas++
-	}
-	if res.TempoVolta == 0 && c.Progresso.Voltas >= 1 {
-		res.TempoVolta = float64(res.Ticks) * t.Cfg.DT
-	}
-	if ind.avanco.Tick(t.Pista, antes, c.Pos) {
-		res.Parou = true
+	if v.Treino.Passo(&ind.Carro, ind.ctl, &ind.avanco, &ind.Res) {
 		ind.Fim = true
-	}
-	if res.Ticks >= t.MaxTicks || !c.Vivo {
-		ind.Fim = true
-	}
-	res.Distancia, res.Voltas = c.Progresso.Distancia, c.Progresso.Voltas
-	if ind.Fim {
-		res.Pontuacao = ia.Pontuacao(res.Distancia, res.Voltas, res.TempoVolta, res.Batidas)
 	}
 }
 
