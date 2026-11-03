@@ -12,8 +12,9 @@ import (
 
 // Avaliação de uma rede no treino (D5, D22, D23): o indivíduo dirige sozinho
 // NLargadas vezes, uma de cada posição de sim.Largada(p, NLargadas), com a
-// Config da corrida (BaterMata = false: bater zera a velocidade e devolve o
-// carro à última posição válida), cada vez até TempoMaxTreino ou até passar
+// Config da corrida (BaterMata = false: bater devolve o carro ao começo do
+// tick e o faz deslizar na parede com metade da velocidade ao longo dela, D28),
+// cada vez até TempoMaxTreino ou até passar
 // TicksParado ticks sem avançar no sentido da pista, medido por
 // sim.AvancoNaLinha (conta também antes de cruzar a largada); a nota é a
 // média das NLargadas notas. A simulação não sorteia nada, então a nota só depende da rede e da

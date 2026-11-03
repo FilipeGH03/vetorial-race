@@ -67,8 +67,8 @@ go run ./cmd/treino -pista pistas/oval.json -seed 1
 
 Roda a neuroevolução sem janela: 50 redes por geração, 500 gerações (`-geracoes n` muda). Cada rede
 dirige sozinha 6 vezes, uma de cada posição da largada de 6 carros, por até 60 s cada, e a nota é a
-média das 6. Bater na parede zera a velocidade e devolve o carro à última posição válida (como na
-corrida), sem matar, e a volta é encerrada se passar 1 s
+média das 6. Bater na parede devolve o carro ao começo do tick e o faz deslizar ao longo dela com
+metade da velocidade nessa direção (como na corrida), sem matar, e a volta é encerrada se passar 1 s
 (60 ticks) sem avançar no sentido da pista (medido pela projeção na linha central, que conta também
 antes de cruzar a largada). A nota de cada largada (D26) é a distância percorrida + 1000 por volta +
 20 por segundo poupado na 1ª volta − 300 por batida nova (tick na parede depois de um tick fora dela)
