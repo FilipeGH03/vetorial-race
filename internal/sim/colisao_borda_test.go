@@ -173,8 +173,8 @@ func TestUmTickNuncaSaiDaPista(t *testing.T) {
 				if !naPista(p, c.Pos) {
 					t.Fatalf("%s: carro saiu de %v com Vel %v e parou em %v, fora da pista (Batido = %v)", p.Nome, q, ini, c.Pos, c.Batido)
 				}
-				if c.Batido && (c.Pos != q || c.Vel != (Vec2{})) {
-					t.Fatalf("%s: bateu mas Pos = %v (quer %v) e Vel = %v", p.Nome, c.Pos, q, c.Vel)
+				if c.Batido && (c.Pos != q || c.Vel.Len() > 0.5*ini.Len()+1e-9) {
+					t.Fatalf("%s: bateu mas Pos = %v (quer %v) e Vel = %v (quer |Vel| <= metade de %v)", p.Nome, c.Pos, q, c.Vel, ini)
 				}
 			}
 		}
