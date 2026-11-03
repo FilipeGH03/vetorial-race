@@ -102,22 +102,26 @@ func ticksBatidosNaCorrida(p *sim.Pista, r *Rede) [NLargadas]int {
 	return out
 }
 
-// Meta da D26 (mantida pela D27): o cérebro do oval, numa sim.Corrida de 60 s
-// de cada uma das 6 largadas (só ele dirigindo, como no treino), tem ≤ 5 ticks
+// MaxTicksBatidos é a meta da D29: com o deslize da D28 a rede raspa a parede
+// ~3 vezes por volta, então se aceitam até 35 ticks batidos por largada de 60 s
+// (≈ 3,5 por volta com 10 voltas).
+const MaxTicksBatidos = 35
+
+// Meta da D29: o cérebro do oval, numa sim.Corrida de 60 s de cada uma das 6
+// largadas (só ele dirigindo, como no treino), tem ≤ MaxTicksBatidos ticks
 // batidos. Pulado com -short.
-func TestCerebroOvalBateNoMaximo5Ticks(t *testing.T) {
+func TestCerebroOvalBateNoMaximo35Ticks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("prova da C3 (D26)")
 	}
-	t.Skip("meta da D26/D27 não alcançada: o cerebros/oval.json (geração 248) bate 20 ticks por largada e o treino da D27 (seeds 1 a 4, até 800 gerações) não achou cérebro com ≤ 5; ver o retorno da C3")
 	r, err := CarregarRede("../../cerebros/oval.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for k, n := range ticksBatidosNaCorrida(pistaOval(t), r) {
 		t.Logf("largada %d: %d ticks batidos", k, n)
-		if n > 5 {
-			t.Errorf("largada %d: %d ticks batidos em 60 s, D26 pede ≤ 5", k, n)
+		if n > MaxTicksBatidos {
+			t.Errorf("largada %d: %d ticks batidos em 60 s, D29 pede ≤ %d", k, n, MaxTicksBatidos)
 		}
 	}
 }

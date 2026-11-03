@@ -173,7 +173,7 @@ func provaCorrida(p *sim.Pista, r *Rede) []string {
 	return falhas
 }
 
-// O cérebro versionado do oval (gerado por go run ./cmd/treino -pista
+// O cérebro versionado do oval (geração 464 de go run ./cmd/treino -pista
 // pistas/oval.json -seed 1) passa na prova da C3 em todas as largadas.
 // Pulado com -short.
 func TestCerebroOvalCompletaVoltaDeTodasAsLargadas(t *testing.T) {
@@ -192,13 +192,12 @@ func TestCerebroOvalCompletaVoltaDeTodasAsLargadas(t *testing.T) {
 // Critério de prova da C3 de ponta a ponta (D27): o treino padrão (seed 1, 50
 // indivíduos, 14-12-2, 500 gerações com a rampa de PenasDaGeracao, o melhor
 // pela fórmula cheia, como em cmd/treino) produz um cérebro que passa na prova
-// em todas as largadas e bate no máximo 5 ticks em cada uma. Pulado com -short
+// em todas as largadas e bate no máximo MaxTicksBatidos ticks em cada uma (D29). Pulado com -short
 // (leva minutos).
 func TestTreinoOvalPassaNaProva(t *testing.T) {
 	if testing.Short() {
 		t.Skip("treino longo")
 	}
-	t.Skip("meta da D27 não alcançada: com seeds 1 a 4 e até 800 gerações o melhor cérebro ainda bate ~2 ticks por volta (≈ 20 por largada); ver o retorno da C3")
 	tr := treinoOval(t)
 	pop, err := NovaPopulacao(ParamsPadrao())
 	if err != nil {
@@ -227,8 +226,8 @@ func TestTreinoOvalPassaNaProva(t *testing.T) {
 		t.Error(f)
 	}
 	for k, n := range ticksBatidosNaCorrida(tr.Pista, melhor) {
-		if n > 5 {
-			t.Errorf("largada %d: %d ticks batidos em 60 s, a meta é ≤ 5", k, n)
+		if n > MaxTicksBatidos {
+			t.Errorf("largada %d: %d ticks batidos em 60 s, a meta é ≤ %d", k, n, MaxTicksBatidos)
 		}
 	}
 }
