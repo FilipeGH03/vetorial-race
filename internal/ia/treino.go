@@ -19,7 +19,7 @@ import (
 // média das NLargadas notas. A simulação não sorteia nada, então a nota só depende da rede e da
 // pista: avaliar em goroutines dá o mesmo resultado que em série.
 
-// Parâmetros da pontuação do treino (D23, D26).
+// Parâmetros da pontuação do treino (D23, D26, D27).
 const (
 	TempoMaxTreino = 60.0   // s que cada indivíduo dirige, no máximo (D5)
 	TicksParado    = 60     // ticks (1 s) sem avançar no sentido da pista (sim.AvancoNaLinha) que encerram o indivíduo (D23)
@@ -29,6 +29,56 @@ const (
 	PenaBatida     = 50.0   // pontos tirados por tick com batida na parede (D25, mantida pela D26)
 	NLargadas      = 6      // posições de sim.Largada(p, NLargadas) de que cada indivíduo larga (D22)
 )
+
+// Rampa das penas de batida no treino (D27): até a geração RampaInicio − 1 o
+// treino usa PenasLeves (as da D23); de RampaInicio a RampaFim − 1 as duas
+// penas sobem linearmente até PenasCheias; de RampaFim em diante, a D26 cheia.
+const (
+	RampaInicio  = 100 // 1ª geração em que as penas começam a subir
+	RampaFim     = 300 // 1ª geração com as penas cheias (D26)
+	PenaTickLeve = 5.0 // pena por tick batido antes da rampa (D23)
+	PenaNovaLeve = 0.0 // pena por batida nova antes da rampa (D23 não tinha)
+)
+
+// Penas são os pontos tirados por batida na nota do treino.
+type Penas struct {
+	BatidaNova float64 // por batida nova (D26)
+	Tick       float64 // por tick batido
+}
+
+var (
+	PenasLeves  = Penas{BatidaNova: PenaNovaLeve, Tick: PenaTickLeve} // gerações 0 .. RampaInicio−1 (D27)
+	PenasCheias = Penas{BatidaNova: PenaBatidaNova, Tick: PenaBatida} // D26: a nota gravada no cérebro
+)
+
+// PenasDaGeracao devolve as penas que o treino aplica na geração g (D27):
+// PenasLeves antes de RampaInicio, PenasCheias de RampaFim em diante e, entre
+// as duas, cada pena na reta que liga uma à outra.
+func PenasDaGeracao(g int) Penas {
+	switch {
+	case g < RampaInicio:
+		return PenasLeves
+	case g >= RampaFim:
+		return PenasCheias
+	}
+	f := float64(g-RampaInicio) / float64(RampaFim-RampaInicio)
+	return Penas{
+		BatidaNova: PenasLeves.BatidaNova + f*(PenasCheias.BatidaNova-PenasLeves.BatidaNova),
+		Tick:       PenasLeves.Tick + f*(PenasCheias.Tick-PenasLeves.Tick),
+	}
+}
+
+// Nota é a fórmula da D26 com as penas pn no lugar das cheias: Distancia +
+// BonusVolta·voltas + BonusTempo·(TempoMaxTreino − tempo da 1ª volta) −
+// pn.BatidaNova·batidas novas − pn.Tick·ticks batidos.
+func (pn Penas) Nota(distancia float64, voltas int, tempoVolta float64, batidasNovas, ticksBatidos int) float64 {
+	p := distancia + BonusVolta*float64(voltas) -
+		pn.BatidaNova*float64(batidasNovas) - pn.Tick*float64(ticksBatidos)
+	if voltas >= 1 {
+		p += BonusTempo * max(0, TempoMaxTreino-tempoVolta)
+	}
+	return p
+}
 
 // ErrTreino é devolvido por NovoTreino quando a pista não serve para treinar.
 var ErrTreino = errors.New("treino inválido")
@@ -50,19 +100,32 @@ type Resultado struct {
 // novas − PenaBatida·ticks batidos. O bônus de tempo só vale quando completa a
 // volta (tempo menor vale mais). Cada batida custa PenaBatidaNova uma vez, mais
 // PenaBatida por tick batido (o 1º incluído) enquanto o carro fica na parede.
+//
+// É a nota gravada no cérebro; o treino seleciona com PenasDaGeracao (D27).
 func Pontuacao(distancia float64, voltas int, tempoVolta float64, batidasNovas, ticksBatidos int) float64 {
-	p := distancia + BonusVolta*float64(voltas) -
-		PenaBatidaNova*float64(batidasNovas) - PenaBatida*float64(ticksBatidos)
-	if voltas >= 1 {
-		p += BonusTempo * max(0, TempoMaxTreino-tempoVolta)
-	}
-	return p
+	return PenasCheias.Nota(distancia, voltas, tempoVolta, batidasNovas, ticksBatidos)
+}
+
+// Nota é a nota deste resultado com as penas pn (D27); com PenasCheias é a
+// Pontuacao.
+func (r Resultado) Nota(pn Penas) float64 {
+	return pn.Nota(r.Distancia, r.Voltas, r.TempoVolta, r.BatidasNovas, r.Batidas)
 }
 
 // Avaliacao é o que um indivíduo fez nas NLargadas largadas (D22).
 type Avaliacao struct {
-	Pontuacao float64              // média das Pontuacao de Largadas: a nota do indivíduo
+	Pontuacao float64              // média das Pontuacao de Largadas: a nota do indivíduo (D26, a gravada no cérebro)
 	Largadas  [NLargadas]Resultado // Largadas[k]: partindo de sim.Largada(p, NLargadas)[k]
+}
+
+// Nota é a média das notas das largadas com as penas pn (D27), somadas na
+// mesma ordem que Pontuacao: com PenasCheias dá a Pontuacao, bit a bit.
+func (a Avaliacao) Nota(pn Penas) float64 {
+	soma := 0.0
+	for _, r := range a.Largadas {
+		soma += r.Nota(pn)
+	}
+	return soma / NLargadas
 }
 
 // VoltasMin é o menor número de voltas entre as largadas: ≥ 1 quando o
@@ -218,11 +281,14 @@ func (a *Avanco) Tick(p *sim.Pista, de, ate sim.Vec2) bool {
 	return a.parado >= TicksParado
 }
 
-// AvaliarPopulacao roda todas as redes da população em até workers goroutines
-// (workers ≤ 0 usa GOMAXPROCS), guarda as notas com Definir e devolve o
-// Avaliacao de cada rede, na ordem de pop.Redes. As NLargadas corridas de cada
-// indivíduo também são repartidas entre os workers; nenhuma divide estado com
-// outra, então o resultado não depende de workers.
+// AvaliarPopulacao roda todas as redes da população, elite inclusive, em até
+// workers goroutines (workers ≤ 0 usa GOMAXPROCS) e devolve o Avaliacao de cada
+// rede, na ordem de pop.Redes. A nota de seleção, guardada com Definir em
+// pop.Pontuacoes, usa as penas da geração, PenasDaGeracao(pop.Geracao) (D27);
+// Rede.Pontuacao fica com a Pontuacao (fórmula cheia, D26), a que vai para o
+// arquivo do cérebro. As NLargadas corridas de cada indivíduo também são
+// repartidas entre os workers; nenhuma divide estado com outra, então o
+// resultado não depende de workers.
 func (t *Treino) AvaliarPopulacao(pop *Populacao, workers int) ([]Avaliacao, error) {
 	if workers <= 0 {
 		workers = runtime.GOMAXPROCS(0)
@@ -245,6 +311,7 @@ func (t *Treino) AvaliarPopulacao(pop *Populacao, workers int) ([]Avaliacao, err
 	close(fila)
 	wg.Wait()
 
+	pn := PenasDaGeracao(pop.Geracao)
 	notas := make([]float64, len(res))
 	for i := range res {
 		soma := 0.0 // mesma ordem de soma que Rodar: mesma nota, bit a bit
@@ -252,10 +319,13 @@ func (t *Treino) AvaliarPopulacao(pop *Populacao, workers int) ([]Avaliacao, err
 			soma += r.Pontuacao
 		}
 		res[i].Pontuacao = soma / NLargadas
-		notas[i] = res[i].Pontuacao
+		notas[i] = res[i].Nota(pn)
 	}
 	if err := pop.Definir(notas); err != nil {
 		return nil, err
+	}
+	for i, r := range pop.Redes {
+		r.Pontuacao = res[i].Pontuacao // D27: o cérebro guarda a fórmula cheia
 	}
 	return res, nil
 }

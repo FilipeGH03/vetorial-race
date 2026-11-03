@@ -65,15 +65,19 @@ Depois: `go run ./cmd/jogo -pista pistas/minha.json` (ou escolha no menu).
 go run ./cmd/treino -pista pistas/oval.json -seed 1
 ```
 
-Roda a neuroevolução sem janela: 50 redes por geração, 300 gerações (`-geracoes n` muda). Cada rede
+Roda a neuroevolução sem janela: 50 redes por geração, 500 gerações (`-geracoes n` muda). Cada rede
 dirige sozinha 6 vezes, uma de cada posição da largada de 6 carros, por até 60 s cada, e a nota é a
 média das 6. Bater na parede zera a velocidade e devolve o carro à última posição válida (como na
 corrida), sem matar, e a volta é encerrada se passar 1 s
 (60 ticks) sem avançar no sentido da pista (medido pela projeção na linha central, que conta também
 antes de cruzar a largada). A nota de cada largada (D26) é a distância percorrida + 1000 por volta +
 20 por segundo poupado na 1ª volta − 300 por batida nova (tick na parede depois de um tick fora dela)
-− 50 por tick encostado na parede. A pontuação gravada no cérebro é a dessa fórmula; ao mudar a
-fórmula, os cérebros de `cerebros/` são recalculados. A rede vê 14 entradas: 7 sensores em direções fixas do mundo, a velocidade (x, y e módulo) e
+− 50 por tick encostado na parede. O treino aplica as penas de batida aos poucos (D27): nas gerações
+0–99 é 0 por batida nova e 5 por tick; de 100 a 299 as duas sobem em linha reta até 300 e 50; da 300
+em diante valem cheias. Toda a população, a elite inclusive, é reavaliada a cada geração com as penas
+daquela geração, e cada linha impressa mostra as penas em vigor. A pontuação gravada no cérebro é
+sempre a da fórmula cheia (e o melhor de todas as gerações é escolhido por ela); ao mudar a fórmula,
+os cérebros de `cerebros/` são recalculados. A rede vê 14 entradas: 7 sensores em direções fixas do mundo, a velocidade (x, y e módulo) e
 a direção da pista à frente. Imprime a melhor nota de cada geração, a geração da 1ª volta completa
 (e a da 1ª vez que o melhor completou a volta das 6 largadas) e grava a melhor rede em
 `cerebros/<arquivo da pista sem extensão>.json` (ou em `-saida arq`). A mesma seed dá sempre o mesmo

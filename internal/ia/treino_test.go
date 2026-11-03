@@ -285,7 +285,8 @@ func TestAvaliarPopulacaoIgualEmSerieEEmParalelo(t *testing.T) {
 		if want := tr.Rodar(r); resA[i] != want {
 			t.Errorf("rede %d: %+v, Rodar dá %+v", i, resA[i], want)
 		}
-		if a.Pontuacoes[i] != resA[i].Pontuacao || r.Pontuacao != resA[i].Pontuacao {
+		// D27: a nota de seleção usa as penas da geração; a da rede, a fórmula cheia.
+		if a.Pontuacoes[i] != resA[i].Nota(PenasDaGeracao(a.Geracao)) || r.Pontuacao != resA[i].Pontuacao {
 			t.Errorf("rede %d: nota %v / %v, resultado %v", i, a.Pontuacoes[i], r.Pontuacao, resA[i].Pontuacao)
 		}
 	}

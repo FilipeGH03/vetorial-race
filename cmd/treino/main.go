@@ -20,7 +20,7 @@ import (
 func main() {
 	log.SetFlags(0)
 	pista := flag.String("pista", "pistas/oval.json", "arquivo da pista")
-	geracoes := flag.Int("geracoes", 300, "quantas gerações avaliar")
+	geracoes := flag.Int("geracoes", 500, "quantas gerações avaliar (D27)")
 	seed := flag.Uint64("seed", 1, "seed do sorteio (mesma seed, mesmo resultado)")
 	saida := flag.String("saida", "", "arquivo do cérebro (padrão: cerebros/<arquivo da pista sem extensão>.json)")
 	camadas := flag.String("camadas", juntar(ia.CamadasPadrao),
@@ -69,6 +69,8 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 
 	fmt.Printf("pista %s (%.0f px por volta), rede %v, %d indivíduos, seed %d, %d largadas de até %.0f s cada (fim após %d ticks sem avançar)\n",
 		p.Nome, p.Comprimento, forma, populacao, seed, ia.NLargadas, ia.TempoMaxTreino, ia.TicksParado)
+	fmt.Printf("penas de batida (D27): gerações 0-%d com %s, sobem linearmente até a %d, e de %d em diante %s (a nota gravada é sempre a cheia)\n",
+		ia.RampaInicio-1, penas(ia.PenasLeves), ia.RampaFim-1, ia.RampaFim, penas(ia.PenasCheias))
 	var melhor *ia.Rede
 	// primeiraVolta: 1ª geração em que algum indivíduo completou a volta de
 	// alguma largada; todasLargadas: 1ª em que o melhor a completou de todas.
@@ -80,19 +82,21 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 		if err != nil {
 			return err
 		}
-		r, nota := pop.Melhor()
+		_, nota := pop.Melhor()
 		b := res[pop.Ranking()[0]]
-		fmt.Printf("geração %3d  melhor %9.1f  distância média %7.0f  voltas (mín) %2d  com volta %d/%d  1ª volta (pior) %5s  batidas %4d (novas %3d)  paradas %d  (%.1fs)\n",
-			pop.Geracao, nota, distanciaMedia(b), b.VoltasMin(), b.ComVolta(), ia.NLargadas, tempoVolta(b), batidas(b), batidasNovas(b), paradas(b),
-			time.Since(ini).Seconds())
+		fmt.Printf("geração %3d  %s  melhor %9.1f (cheia %9.1f)  distância média %7.0f  voltas (mín) %2d  com volta %d/%d  1ª volta (pior) %5s  batidas %4d (novas %3d)  paradas %d  (%.1fs)\n",
+			pop.Geracao, penas(ia.PenasDaGeracao(pop.Geracao)), nota, b.Pontuacao, distanciaMedia(b), b.VoltasMin(), b.ComVolta(), ia.NLargadas,
+			tempoVolta(b), batidas(b), batidasNovas(b), paradas(b), time.Since(ini).Seconds())
 		if primeiraVolta < 0 && algumaVolta(res) {
 			primeiraVolta = pop.Geracao
 		}
 		if todasLargadas < 0 && b.VoltasMin() >= 1 {
 			todasLargadas = pop.Geracao
 		}
-		if melhor == nil || nota > melhor.Pontuacao {
-			melhor = r.Copia()
+		// O melhor de todas as gerações sai da nota cheia (D26), a que vai para
+		// o arquivo: notas de seleção com penas diferentes não se comparam (D27).
+		if i := melhorCheia(res); melhor == nil || res[i].Pontuacao > melhor.Pontuacao {
+			melhor = pop.Redes[i].Copia()
 		}
 		if g == geracoes-1 {
 			break
@@ -121,6 +125,23 @@ func rodar(arqPista string, geracoes int, seed uint64, saida, camadas string, po
 	fmt.Printf("melhor: geração %d, pontuação %.1f -> %s (%.1fs no total)\n",
 		melhor.Geracao, melhor.Pontuacao, saida, time.Since(inicio).Seconds())
 	return nil
+}
+
+// penas descreve as penas de batida (D27).
+func penas(pn ia.Penas) string {
+	return fmt.Sprintf("penas %5.1f/nova %4.1f/tick", pn.BatidaNova, pn.Tick)
+}
+
+// melhorCheia devolve o índice da maior Pontuacao (fórmula cheia, D26); empate
+// fica com o de menor índice.
+func melhorCheia(res []ia.Avaliacao) int {
+	m := 0
+	for i := range res {
+		if res[i].Pontuacao > res[m].Pontuacao {
+			m = i
+		}
+	}
+	return m
 }
 
 // tempoVolta é o tempo da 1ª volta na largada mais lenta; "-" se alguma
