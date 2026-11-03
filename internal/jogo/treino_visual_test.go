@@ -2,6 +2,7 @@ package jogo
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -58,44 +59,83 @@ func TestTreinoVisualComecaComPopulacaoNaLargada(t *testing.T) {
 	}
 }
 
-// Prova de que a tela treina de verdade: as notas da geração fechada na tela
-// são, bit a bit, as de ia.Treino.Rodar (6 largadas, média) para as mesmas
-// redes. Passo a passo e RodarDe são o mesmo tick.
+// Prova de que a tela treina de verdade com a rampa da D27: nas gerações 0
+// (penas leves), 150 (rampa) e 400 (cheias) as notas da geração fechada na tela
+// são, bit a bit, as de ia.Treino.AvaliarPopulacao para as mesmas redes: a de
+// seleção (penas da geração) e a cheia (a gravada no cérebro).
 func TestTreinoVisualNotasIguaisAoTreino(t *testing.T) {
-	v := novoVisual(t, 7)
-	redes := make([]*ia.Rede, len(v.Pop.Redes))
-	for i, r := range v.Pop.Redes {
-		redes[i] = r.Copia()
+	for _, g := range []int{0, 150, 400} {
+		t.Run(fmt.Sprintf("geracao%d", g), func(t *testing.T) {
+			if testing.Short() && g > 0 {
+				t.Skip("avalia uma geração inteira")
+			}
+			v := novoVisual(t, 7)
+			v.Pop.Geracao = g
+			v.novaGeracao()
+			ref, err := ia.NovoTreino(v.Pista)
+			if err != nil {
+				t.Fatal(err)
+			}
+			params := ia.ParamsPadrao()
+			params.Seed = 7
+			pop, err := ia.NovaPopulacao(params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i, r := range v.Pop.Redes {
+				pop.Redes[i] = r.Copia()
+			}
+			pop.Geracao = g
+			res, err := ref.AvaliarPopulacao(pop, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, melhorSel := pop.Melhor()
+			somaSel, melhorCheia := 0.0, math.Inf(-1)
+			for i := range res {
+				somaSel += pop.Pontuacoes[i]
+				melhorCheia = max(melhorCheia, res[i].Pontuacao)
+			}
+
+			rodarGeracao(t, v)
+			if len(v.Historico) != 1 {
+				t.Fatalf("historico com %d pontos, quero 1", len(v.Historico))
+			}
+			h := v.Historico[0]
+			if h.Geracao != g || h.Penas != ia.PenasDaGeracao(g) {
+				t.Errorf("geração %d penas %+v, quero %d e %+v", h.Geracao, h.Penas, g, ia.PenasDaGeracao(g))
+			}
+			if h.Melhor != melhorSel {
+				t.Errorf("melhor de seleção %v, AvaliarPopulacao dá %v", h.Melhor, melhorSel)
+			}
+			if h.Media != somaSel/float64(len(res)) {
+				t.Errorf("média de seleção %v, AvaliarPopulacao dá %v", h.Media, somaSel/float64(len(res)))
+			}
+			if v.Melhor == nil || v.MelhorNota != melhorCheia {
+				t.Fatalf("melhor cérebro %v nota %v, quero a cheia %v", v.Melhor != nil, v.MelhorNota, melhorCheia)
+			}
+			if v.Melhor.Pontuacao != melhorCheia {
+				t.Errorf("Pontuacao do cérebro %v, quero a cheia %v", v.Melhor.Pontuacao, melhorCheia)
+			}
+			if got := ref.Rodar(v.Melhor).Pontuacao; got != melhorCheia {
+				t.Errorf("o cérebro guardado reproduz %v, a nota cheia era %v", got, melhorCheia)
+			}
+			if v.Geracao() != g+1 || v.Largada != 0 || v.Rodando() != 50 {
+				t.Errorf("depois da geração %d: geração %d, largada %d, rodando %d", g, v.Geracao(), v.Largada, v.Rodando())
+			}
+		})
 	}
-	rodarGeracao(t, v)
-	if len(v.Historico) != 1 {
-		t.Fatalf("historico com %d pontos, quero 1", len(v.Historico))
-	}
-	ref, err := ia.NovoTreino(v.Pista)
-	if err != nil {
-		t.Fatal(err)
-	}
-	melhor, soma := math.Inf(-1), 0.0
-	for _, r := range redes { // v.Pop.Redes já é a geração 1: as notas da 0 vêm do Historico
-		a := ref.Rodar(r)
-		soma += a.Pontuacao
-		melhor = max(melhor, a.Pontuacao)
-	}
-	h := v.Historico[0]
-	if h.Melhor != melhor {
-		t.Errorf("melhor da geração %v, ia.Treino.Rodar dá %v", h.Melhor, melhor)
-	}
-	if h.Media != soma/float64(len(redes)) {
-		t.Errorf("média da geração %v, ia.Treino.Rodar dá %v", h.Media, soma/float64(len(redes)))
-	}
-	if v.Melhor == nil || v.MelhorNota != melhor {
-		t.Fatalf("melhor cérebro %v nota %v, quero nota %v", v.Melhor != nil, v.MelhorNota, melhor)
-	}
-	if got := ref.Rodar(v.Melhor).Pontuacao; got != melhor {
-		t.Errorf("o cérebro guardado reproduz %v, a nota era %v", got, melhor)
-	}
-	if v.Geracao() != 1 || v.Largada != 0 || v.Rodando() != 50 {
-		t.Errorf("depois da geração 0: geração %d, largada %d, rodando %d", v.Geracao(), v.Largada, v.Rodando())
+}
+
+func TestTreinoVisualPainelMostraPena(t *testing.T) {
+	v := novoVisual(t, 1)
+	for _, g := range []int{0, 150, 400} {
+		v.Pop.Geracao = g
+		pn := ia.PenasDaGeracao(g)
+		want := fmt.Sprintf("%.0f por batida nova, %.0f por tick batido", pn.BatidaNova, pn.Tick)
+		if !strings.Contains(strings.Join(TextoPainelTreino(v), "|"), want) {
+			t.Errorf("geração %d: painel sem %q", g, want)
+		}
 	}
 }
 

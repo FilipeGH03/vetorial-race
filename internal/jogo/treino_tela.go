@@ -192,10 +192,12 @@ func TextoPainelTreino(v *TreinoVisual) []string {
 		fmt.Sprintf("TREINO  pista %s  geracao %d  largada %d/%d  andando %d/%d  vel %s",
 			v.Nome, v.Geracao(), v.Largada+1, ia.NLargadas, v.Rodando(), len(v.Individuos), estado),
 	}
+	pn := v.PenasEmVigor()
+	linhas = append(linhas, fmt.Sprintf("pena em vigor (D27): %.0f por batida nova, %.0f por tick batido%s", pn.BatidaNova, pn.Tick, textoFasePena(v.Geracao())))
 	if n := len(v.Historico); n > 0 {
 		u := v.Historico[n-1]
-		linhas = append(linhas, fmt.Sprintf("geracao %d: melhor %.1f  media %.1f", u.Geracao, u.Melhor, u.Media))
-		linhas = append(linhas, fmt.Sprintf("melhor de todas: %.1f (nasceu na geracao %d)", v.MelhorNota, v.MelhorGeracao))
+		linhas = append(linhas, fmt.Sprintf("geracao %d: melhor %.1f  media %.1f (selecao)", u.Geracao, u.Melhor, u.Media))
+		linhas = append(linhas, fmt.Sprintf("melhor de todas: %.1f cheia (nasceu na geracao %d)", v.MelhorNota, v.MelhorGeracao))
 	} else {
 		linhas = append(linhas, "geracao 0 ainda nao terminou (6 largadas)")
 	}
@@ -208,9 +210,20 @@ func TextoPainelTreino(v *TreinoVisual) []string {
 	return linhas
 }
 
+// textoFasePena diz em que fase da rampa da D27 a geração g está.
+func textoFasePena(g int) string {
+	switch {
+	case g < ia.RampaInicio:
+		return " (leves, sobem na geracao " + fmt.Sprint(ia.RampaInicio) + ")"
+	case g >= ia.RampaFim:
+		return " (cheias)"
+	}
+	return " (subindo ate a geracao " + fmt.Sprint(ia.RampaFim) + ")"
+}
+
 func (t *TreinoTela) desenharPainel(tela *ebiten.Image) {
 	linhas := TextoPainelTreino(t.V)
-	vector.FillRect(tela, 4, 4, 560, float32(16*len(linhas)+8), corPainel, false)
+	vector.FillRect(tela, 4, 4, 620, float32(16*len(linhas)+8), corPainel, false)
 	for i, l := range linhas {
 		texto(tela, l, 8, 6+16*i)
 	}

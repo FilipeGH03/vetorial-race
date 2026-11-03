@@ -27,8 +27,9 @@ const VelocidadePadrao = 2
 // PontoGeracao é o resumo de uma geração já avaliada.
 type PontoGeracao struct {
 	Geracao int
-	Melhor  float64 // maior nota da geração
-	Media   float64 // média das notas da geração
+	Melhor  float64  // maior nota de seleção da geração (penas da geração, D27)
+	Media   float64  // média das notas de seleção da geração
+	Penas   ia.Penas // penas de batida com que a geração foi avaliada (D27)
 }
 
 // Individuo é uma rede dirigindo um carro numa rodada.
@@ -55,8 +56,8 @@ type TreinoVisual struct {
 	Historico  []PontoGeracao
 
 	Melhor        *ia.Rede // melhor rede de todas as gerações (cópia), nil até a 1ª geração terminar
-	MelhorNota    float64
-	MelhorGeracao int // geração em que Melhor nasceu
+	MelhorNota    float64  // nota cheia (D26) do Melhor
+	MelhorGeracao int      // geração em que Melhor nasceu
 
 	Pausado   bool
 	VelIndice int    // índice em Velocidades
@@ -165,31 +166,44 @@ func (v *TreinoVisual) fecharLargada() {
 	v.fecharGeracao()
 }
 
-// fecharGeracao calcula a nota de cada rede (média das rodadas, mesma ordem de
-// soma de ia.Treino.AvaliarPopulacao), registra o resumo, guarda o melhor
-// cérebro e gera a população seguinte.
+// fecharGeracao calcula a nota de cada rede como ia.Treino.AvaliarPopulacao
+// (D27): a de seleção usa as penas da geração (PenasDaGeracao), a cheia (D26,
+// a que vai para o cérebro) é a média das Pontuacao das rodadas. Registra o
+// resumo, guarda o melhor cérebro pela nota cheia e gera a população seguinte.
 func (v *TreinoVisual) fecharGeracao() {
+	pn := ia.PenasDaGeracao(v.Pop.Geracao)
 	notas := make([]float64, len(v.avals))
 	soma := 0.0
 	for i := range v.avals {
-		s := 0.0
+		s := 0.0 // mesma ordem de soma de AvaliarPopulacao: mesma nota, bit a bit
 		for _, r := range v.avals[i].Largadas {
 			s += r.Pontuacao
 		}
 		v.avals[i].Pontuacao = s / ia.NLargadas
-		notas[i] = v.avals[i].Pontuacao
+		notas[i] = v.avals[i].Nota(pn)
 		soma += notas[i]
 	}
 	if err := v.Pop.Definir(notas); err != nil {
 		v.Erro = err
 		return
 	}
-	r, nota := v.Pop.Melhor()
-	v.Historico = append(v.Historico, PontoGeracao{Geracao: v.Pop.Geracao, Melhor: nota, Media: soma / float64(len(notas))})
-	if v.Melhor == nil || nota > v.MelhorNota {
+	for i, r := range v.Pop.Redes {
+		r.Pontuacao = v.avals[i].Pontuacao // D27: o cérebro guarda a fórmula cheia
+	}
+	_, nota := v.Pop.Melhor()
+	v.Historico = append(v.Historico, PontoGeracao{Geracao: v.Pop.Geracao, Melhor: nota, Media: soma / float64(len(notas)), Penas: pn})
+	// O melhor de todas as gerações sai da nota cheia: notas de seleção com
+	// penas diferentes não se comparam (D27).
+	mi := 0
+	for i := range v.avals {
+		if v.avals[i].Pontuacao > v.avals[mi].Pontuacao {
+			mi = i
+		}
+	}
+	if r, cheia := v.Pop.Redes[mi], v.avals[mi].Pontuacao; v.Melhor == nil || cheia > v.MelhorNota {
 		v.Melhor = r.Copia()
 		v.Melhor.Pista = v.Nome
-		v.MelhorNota, v.MelhorGeracao = nota, r.Geracao
+		v.MelhorNota, v.MelhorGeracao = cheia, r.Geracao
 	}
 	if err := v.Pop.Proxima(); err != nil {
 		v.Erro = err
@@ -197,6 +211,9 @@ func (v *TreinoVisual) fecharGeracao() {
 	}
 	v.novaGeracao()
 }
+
+// PenasEmVigor são as penas de batida da geração em andamento (D27).
+func (v *TreinoVisual) PenasEmVigor() ia.Penas { return ia.PenasDaGeracao(v.Pop.Geracao) }
 
 // ErroSemMelhor é devolvido por Salvar antes de uma geração terminar.
 var ErroSemMelhor = errors.New("nenhuma geração terminou ainda: não há melhor cérebro")
