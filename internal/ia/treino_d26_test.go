@@ -24,8 +24,8 @@ func TestPenasBatidaD26(t *testing.T) {
 		}
 	}
 	// Sem volta o bônus de tempo não entra, e as penas continuam valendo.
-	if got := Pontuacao(500, 0, 0, 1, 2); got != 500-300-100 {
-		t.Errorf("500 px, 1 batida nova de 2 ticks, sem volta: %v, esperava 100", got)
+	if got := Pontuacao(500, 0, 0, 1, 2); got != BonusDistancia*500-300-100 {
+		t.Errorf("500 px, 1 batida nova de 2 ticks, sem volta: %v, esperava %v", got, BonusDistancia*500-300-100)
 	}
 	// Mesmos ticks batidos: duas batidas custam mais que uma batida longa.
 	if Pontuacao(3000, 1, 45, 2, 6) >= Pontuacao(3000, 1, 45, 1, 6) {

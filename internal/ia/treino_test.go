@@ -57,10 +57,10 @@ func TestNovoTreinoSemPista(t *testing.T) {
 }
 
 func TestPontuacao(t *testing.T) {
-	if got := Pontuacao(500, 0, 0, 0, 0); got != 500 {
+	if got := Pontuacao(500, 0, 0, 0, 0); got != BonusDistancia*500 {
 		t.Errorf("sem volta: %v", got)
 	}
-	if got := Pontuacao(1500, 1, 30, 0, 0); got != 1500+BonusVolta+BonusTempo*30 {
+	if got := Pontuacao(1500, 1, 30, 0, 0); got != BonusDistancia*1500+BonusVolta+BonusTempo*30 {
 		t.Errorf("1 volta em 30 s: %v", got)
 	}
 	if Pontuacao(1500, 1, 20, 0, 0) <= Pontuacao(1500, 1, 30, 0, 0) {
@@ -69,11 +69,11 @@ func TestPontuacao(t *testing.T) {
 	if got := Pontuacao(0, 0, 0, 0, 0); got != 0 {
 		t.Errorf("parado: %v", got)
 	}
-	// D26: Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 300·batidas novas − 50·ticks batidos.
-	if got := Pontuacao(2000, 1, 40, 2, 3); got != 2000+1000+20*20-300*2-50*3 {
+	// BonusDistancia·Distancia + 1000·voltas + 20·(60 − tempo da 1ª volta) − 300·batidas novas − 50·ticks batidos.
+	if got := Pontuacao(2000, 1, 40, 2, 3); got != BonusDistancia*2000+1000+20*20-300*2-50*3 {
 		t.Errorf("1 volta em 40 s com 2 batidas novas e 3 ticks batidos: %v", got)
 	}
-	if got := Pontuacao(300, 0, 0, 1, 4); got != 300-300-200 {
+	if got := Pontuacao(300, 0, 0, 1, 4); got != BonusDistancia*300-300-200 {
 		t.Errorf("1 batida nova de 4 ticks sem volta: %v", got)
 	}
 }

@@ -70,7 +70,7 @@ dirige sozinha 6 vezes, uma de cada posição da largada de 6 carros, por até 6
 média das 6. Bater na parede devolve o carro ao começo do tick e o faz deslizar ao longo dela com
 metade da velocidade nessa direção (como na corrida), sem matar, e a volta é encerrada se passar 1 s
 (60 ticks) sem avançar no sentido da pista (medido pela projeção na linha central, que conta também
-antes de cruzar a largada). A nota de cada largada (D26) é a distância percorrida + 1000 por volta +
+antes de cruzar a largada). A nota de cada largada é 2 pontos por unidade de distância percorrida + 1000 por volta +
 20 por segundo poupado na 1ª volta − 300 por batida nova (tick na parede depois de um tick fora dela)
 − 50 por tick encostado na parede. O treino aplica as penas de batida aos poucos (D27): nas gerações
 0–99 é 0 por batida nova e 5 por tick; de 100 a 299 as duas sobem em linha reta até 300 e 50; da 300

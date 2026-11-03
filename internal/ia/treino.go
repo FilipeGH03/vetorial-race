@@ -24,6 +24,7 @@ import (
 const (
 	TempoMaxTreino = 60.0   // s que cada indivíduo dirige, no máximo (D5)
 	TicksParado    = 60     // ticks (1 s) sem avançar no sentido da pista (sim.AvancoNaLinha) que encerram o indivíduo (D23)
+	BonusDistancia = 3.5    // pontos por unidade de distância percorrida
 	BonusVolta     = 1000.0 // pontos por volta completa
 	BonusTempo     = 20.0   // pontos por segundo que sobram de TempoMaxTreino quando completa a 1ª volta
 	PenaBatidaNova = 300.0  // pontos tirados por batida nova: tick batido depois de um tick sem bater, ou o 1º tick (D26)
@@ -69,11 +70,11 @@ func PenasDaGeracao(g int) Penas {
 	}
 }
 
-// Nota é a fórmula da D26 com as penas pn no lugar das cheias: Distancia +
+// Nota é a fórmula do treino com as penas pn no lugar das cheias: BonusDistancia·Distancia +
 // BonusVolta·voltas + BonusTempo·(TempoMaxTreino − tempo da 1ª volta) −
 // pn.BatidaNova·batidas novas − pn.Tick·ticks batidos.
 func (pn Penas) Nota(distancia float64, voltas int, tempoVolta float64, batidasNovas, ticksBatidos int) float64 {
-	p := distancia + BonusVolta*float64(voltas) -
+	p := BonusDistancia*distancia + BonusVolta*float64(voltas) -
 		pn.BatidaNova*float64(batidasNovas) - pn.Tick*float64(ticksBatidos)
 	if voltas >= 1 {
 		p += BonusTempo * max(0, TempoMaxTreino-tempoVolta)
@@ -96,7 +97,7 @@ type Resultado struct {
 	Parou        bool    // encerrado por TicksParado sem avançar (senão, acabou o tempo)
 }
 
-// Pontuacao calcula a nota do treino (D26): Distancia + BonusVolta·voltas +
+// Pontuacao calcula a nota do treino: BonusDistancia·Distancia + BonusVolta·voltas +
 // BonusTempo·(TempoMaxTreino − tempo da 1ª volta) − PenaBatidaNova·batidas
 // novas − PenaBatida·ticks batidos. O bônus de tempo só vale quando completa a
 // volta (tempo menor vale mais). Cada batida custa PenaBatidaNova uma vez, mais
