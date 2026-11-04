@@ -96,13 +96,26 @@ func validarCamadas(camadas []int) error {
 // Forward calcula a saída da rede (NSaida valores em [-1,1]) para a entrada x.
 // Erro se len(x) != Camadas[0] ou se a rede estiver malformada.
 func (r *Rede) Forward(x []float64) ([]float64, error) {
+	ativ, err := r.Ativacoes(x)
+	if err != nil {
+		return nil, err
+	}
+	return ativ[len(ativ)-1], nil
+}
+
+// Ativacoes devolve o valor de cada camada para a entrada x: o índice 0 é uma
+// cópia de x, o k é a saída da camada k (tanh(W·a + b)) e o último é o mesmo
+// que Forward(x). len == len(Camadas). Mesmos erros de Forward.
+func (r *Rede) Ativacoes(x []float64) ([][]float64, error) {
 	if err := r.conferir(); err != nil {
 		return nil, err
 	}
 	if len(x) != r.Camadas[0] {
 		return nil, fmt.Errorf("ia: entrada com %d valores, a rede espera %d", len(x), r.Camadas[0])
 	}
-	atual := x
+	saida := make([][]float64, 0, len(r.Camadas))
+	atual := append([]float64(nil), x...)
+	saida = append(saida, atual)
 	for k, w := range r.Pesos {
 		y := make([]float64, w.L)
 		if err := w.MulVecEm(y, atual); err != nil {
@@ -111,9 +124,10 @@ func (r *Rede) Forward(x []float64) ([]float64, error) {
 		for i := range y {
 			y[i] = math.Tanh(y[i] + r.Vieses[k][i])
 		}
+		saida = append(saida, y)
 		atual = y
 	}
-	return atual, nil
+	return saida, nil
 }
 
 // conferir vê se Pesos e Vieses combinam com Camadas (a rede pode ter sido
