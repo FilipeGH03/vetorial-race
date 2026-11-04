@@ -25,6 +25,8 @@ Abre uma janela 1280x720 a 60 TPS com o menu. Cima/Baixo (ou W/S) escolhem a lin
   largada 3 s depois do início e mata quem ficar para trás; o último vivo vence).
 - **Voltas**: 1 a 10 (padrão 3). **Carros**: 2 a 8 contando você (padrão 6: você + 5 da IA).
 
+A corrida começa com a largada: 5 luzes vermelhas acendem, uma por segundo, e 1 s depois da última
+apagam. Até apagarem ninguém anda, o tempo e o laser não contam e as teclas são ignoradas.
 Na corrida, WASD ou setas dirigem (duas teclas juntas dão a diagonal; bater na parede para o carro) e as
 setas vermelha (x), verde (y) e amarela (resultante) mostram a velocidade. Os outros carros são
 guiados pela rede de `cerebros/<pista>.json`; sem cérebro (ou com cérebro inválido) o jogo avisa na tela
