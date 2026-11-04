@@ -144,3 +144,20 @@ func TestLargadaRecomecaAoJogarDeNovo(t *testing.T) {
 		t.Error("Esc/Voltar durante as luzes deveria ir ao menu")
 	}
 }
+
+// Tecla apertada durante as luzes não vaza para a largada: soltando-a ao apagar,
+// o primeiro tick andando não acelera ninguém (sem queimar a largada, D31).
+func TestLargadaTeclaAntesNaoVaza(t *testing.T) {
+	p := novaPartidaLargada(t, sim.ModoVoltas)
+	for p.Largando() {
+		p.Passo(Teclas{Cima: true, Direita: true})
+	}
+	p.Passo(Teclas{})
+	r := p.Corrida
+	if r.Tick != 1 {
+		t.Fatalf("Tick=%d, esperava 1", r.Tick)
+	}
+	if v := r.Carros[Humano].Vel; v != (sim.Vec2{}) {
+		t.Errorf("humano acelerou com a tecla de antes da largada: Vel=%v", v)
+	}
+}
