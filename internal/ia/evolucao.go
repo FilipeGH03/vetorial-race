@@ -92,6 +92,38 @@ func NovaPopulacao(p Params) (*Populacao, error) {
 	return pop, nil
 }
 
+// NovaPopulacaoDe monta a geração inicial a partir de um cérebro já treinado
+// (D33): Redes[0] é a cópia intacta de base e as outras são cópias dela com
+// Mutar (TaxaMutacao e Sigma de p). A forma das redes vem de base (p.Camadas é
+// ignorado) e Geracao começa em base.Geracao. Mesma seed, mesma população.
+// base nil ou malformada dá erro (ErrCerebroInvalido); base não é alterada.
+func NovaPopulacaoDe(p Params, base *Rede) (*Populacao, error) {
+	if base == nil {
+		return nil, fmt.Errorf("%w: cérebro base nulo", ErrCerebroInvalido)
+	}
+	if err := base.conferir(); err != nil {
+		return nil, err
+	}
+	p.Camadas = append([]int(nil), base.Camadas...)
+	if err := p.validar(); err != nil {
+		return nil, err
+	}
+	pop := &Populacao{
+		Params:     p,
+		Redes:      make([]*Rede, p.Tamanho),
+		Pontuacoes: make([]float64, p.Tamanho),
+		Geracao:    base.Geracao,
+		rng:        rand.New(rand.NewPCG(p.Seed, p.Seed^0x9e3779b97f4a7c15)),
+	}
+	pop.Redes[0] = base.Copia()
+	for i := 1; i < p.Tamanho; i++ {
+		r := base.Copia()
+		Mutar(r, pop.rng, p.TaxaMutacao, p.Sigma)
+		pop.Redes[i] = r
+	}
+	return pop, nil
+}
+
 // Avaliar chama pontuar para cada rede, em ordem, e guarda as notas.
 // Maior é melhor. NaN conta como o pior possível.
 func (p *Populacao) Avaliar(pontuar func(*Rede) float64) {
