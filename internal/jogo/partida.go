@@ -20,6 +20,14 @@ type Opcoes struct {
 	Carros       int // 2 a 8, contando o jogador
 }
 
+// Largada estilo F1 (D31): 5 luzes vermelhas acendem uma por segundo e, 1 s
+// depois da última, todas apagam e a corrida começa.
+const (
+	NumLuzes     = 5
+	TicksPorLuz  = 60                           // 1 s por luz
+	TicksLargada = (NumLuzes + 1) * TicksPorLuz // 360: a 5ª luz acende em 300 e apaga em 360
+)
+
 // Humano é o índice do jogador em Corrida.Carros (D19).
 const Humano = 0
 
@@ -41,6 +49,8 @@ type Partida struct {
 	Humano  *ControladorHumano
 	Aviso   string // cérebro ausente ou inválido, para mostrar na tela
 	Pista   string // nome da pista
+
+	ticksLargada int // ticks já gastos nas luzes (0 a TicksLargada)
 }
 
 // NovaPartida carrega a pista (recusa a que não cabe em 1280x720, D17) e o
@@ -100,9 +110,28 @@ func NovaPartida(o Opcoes) (*Partida, error) {
 }
 
 // Passo roda um tick com as teclas do jogador. Só Corrida.Step chama Decidir.
+// Durante as luzes da largada (D31) o tick só conta as luzes: ninguém anda, o
+// tempo, as voltas e o laser não contam, e as teclas são ignoradas (sem queima
+// de largada).
 func (p *Partida) Passo(t Teclas) {
+	if p.Largando() {
+		p.ticksLargada++
+		return
+	}
 	p.Humano.Definir(t)
 	p.Corrida.Step()
+}
+
+// Largando diz se as luzes da largada ainda não apagaram.
+func (p *Partida) Largando() bool { return p.ticksLargada < TicksLargada }
+
+// LuzesAcesas devolve quantas luzes estão acesas (0 a 5): 0 no primeiro
+// segundo, mais uma a cada segundo até 5 e 0 de novo quando apagam (largou).
+func (p *Partida) LuzesAcesas() int {
+	if !p.Largando() {
+		return 0
+	}
+	return min(p.ticksLargada/TicksPorLuz, NumLuzes)
 }
 
 // AvisoLaser diz quando o laser da Eliminação sai (D6/D19): "" fora da

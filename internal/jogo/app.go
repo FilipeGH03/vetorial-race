@@ -224,6 +224,24 @@ func (a *App) desenharPartida(tela *ebiten.Image) {
 		desenharHUD(tela, &r.Carros[r.Humano])
 	}
 	a.desenharPainel(tela, p)
+	if p.Largando() {
+		desenharLuzes(tela, p.LuzesAcesas())
+	}
+}
+
+// desenharLuzes desenha as 5 luzes da largada (D31) no topo da tela, as acesas
+// em vermelho.
+func desenharLuzes(tela *ebiten.Image, acesas int) {
+	const raio, passo = 22, 62
+	x0 := float32(LarguraTela/2) - passo*float32(NumLuzes-1)/2
+	vector.FillRect(tela, x0-raio-12, 8, passo*float32(NumLuzes-1)+2*raio+24, 2*raio+24, corPainel, false)
+	for i := 0; i < NumLuzes; i++ {
+		cor := color.RGBA{R: 0x30, G: 0x10, B: 0x10, A: 0xff}
+		if i < acesas {
+			cor = color.RGBA{R: 0xf4, G: 0x1c, B: 0x1c, A: 0xff}
+		}
+		vector.FillCircle(tela, x0+passo*float32(i), 8+12+raio, raio, cor, true)
+	}
 }
 
 // matizCarro é a rotação de cor (radianos) do sprite azul para o carro i; o do

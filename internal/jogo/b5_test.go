@@ -179,6 +179,7 @@ func TestPassoUsaTeclasDoHumano(t *testing.T) {
 		t.Fatal(err)
 	}
 	ini := p.Corrida.Carros[0].Pos
+	passarLargada(p)
 	for i := 0; i < 30; i++ {
 		p.Passo(Teclas{Direita: true})
 	}
