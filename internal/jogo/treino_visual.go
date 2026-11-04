@@ -72,8 +72,17 @@ type TreinoVisual struct {
 
 // NovoTreinoVisual carrega a pista (recusa a que não cabe em 1280x720, D17) e
 // começa a geração 0 com os parâmetros da D5 e a seed dada. dirCerebros é a
-// pasta onde Salvar grava ("" = DirCerebros).
+// pasta onde Salvar grava ("" = DirCerebros). É NovoTreinoVisualDe a partir do zero.
 func NovoTreinoVisual(caminhoPista, dirCerebros string, seed uint64) (*TreinoVisual, error) {
+	return NovoTreinoVisualDe(caminhoPista, dirCerebros, seed, InicioZero)
+}
+
+// NovoTreinoVisualDe é NovoTreinoVisual com a origem da população (D33). Com
+// InicioCerebroSalvo carrega <dirCerebros>/<pista>.json e monta a geração
+// inicial com ia.NovaPopulacaoDe: Redes[0] é o cérebro intacto, o resto são
+// mutações dele, e Geracao() continua da geração gravada no arquivo (as penas da
+// D27 seguem dali). Sem arquivo, ou com cérebro inválido, devolve erro.
+func NovoTreinoVisualDe(caminhoPista, dirCerebros string, seed uint64, inicio InicioTreino) (*TreinoVisual, error) {
 	p, err := sim.CarregarPista(caminhoPista)
 	if err != nil {
 		return nil, fmt.Errorf("pista %s: %w", caminhoPista, err)
@@ -81,22 +90,36 @@ func NovoTreinoVisual(caminhoPista, dirCerebros string, seed uint64) (*TreinoVis
 	if !CabeNaTela(p) {
 		return nil, fmt.Errorf("pista %s: %w (paredes fora de %dx%d)", caminhoPista, ErrNaoCabe, LarguraTela, AlturaTela)
 	}
+	if dirCerebros == "" {
+		dirCerebros = DirCerebros
+	}
+	nome := nomeDoArquivo(caminhoPista)
 	t, err := ia.NovoTreino(p)
 	if err != nil {
 		return nil, err
 	}
 	params := ia.ParamsPadrao()
 	params.Seed = seed
-	pop, err := ia.NovaPopulacao(params)
-	if err != nil {
-		return nil, err
-	}
-	if dirCerebros == "" {
-		dirCerebros = DirCerebros
+	var pop *ia.Populacao
+	if inicio == InicioCerebroSalvo {
+		caminho := filepath.Join(dirCerebros, nome+".json")
+		base, err := ia.CarregarRede(caminho)
+		if err != nil {
+			return nil, fmt.Errorf("cérebro salvo %s: %w", caminho, err)
+		}
+		pop, err = ia.NovaPopulacaoDe(params, base)
+		if err != nil {
+			return nil, fmt.Errorf("cérebro salvo %s: %w", caminho, err)
+		}
+	} else {
+		pop, err = ia.NovaPopulacao(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 	v := &TreinoVisual{
 		Pista:       p,
-		Nome:        nomeDoArquivo(caminhoPista),
+		Nome:        nome,
 		Treino:      t,
 		Pop:         pop,
 		DirCerebros: dirCerebros,

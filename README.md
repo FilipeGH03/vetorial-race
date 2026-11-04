@@ -40,6 +40,10 @@ Na primeira vez o `go run` baixa as dependências sozinho.
 go run ./cmd/jogo -treino pistas/oval.json      (ou T no menu, com a pista escolhida)
 ```
 
+No menu, a linha `Treino começa de` escolhe `zero` (população aleatória) ou `cérebro salvo`: com este, o treino parte de
+`cerebros/<pista>.json` (a cópia intacta mais 49 mutações dela), a contagem de gerações continua da gravada no
+arquivo e as penas de batida seguem dali. Sem cérebro, o menu fica com o aviso.
+
 Mostra a neuroevolução ao vivo: os 50 carros da geração andam ao mesmo tempo na pista, cada um com os 7
 raios dos sensores (direções fixas do mundo) até a parede; o líder aparece em amarelo, quem parou
 (bateu e ficou 1 s sem avançar, ou acabou o tempo) fica esmaecido. Cada geração tem 6 rodadas, uma por

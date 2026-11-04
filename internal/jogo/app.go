@@ -85,7 +85,7 @@ func (a *App) Voltar() { a.Tela, a.Partida, a.Treino, a.imgPista = TelaMenu, nil
 // IniciarTreino abre a tela de treino na pista escolhida no menu (seed do menu). Se a
 // pista é recusada, fica no menu com o aviso.
 func (a *App) IniciarTreino() error {
-	v, err := NovoTreinoVisual(a.Menu.CaminhoPista(), a.Menu.DirCerebros, a.Menu.Seed)
+	v, err := NovoTreinoVisualDe(a.Menu.CaminhoPista(), a.Menu.DirCerebros, a.Menu.Seed, a.Menu.Inicio)
 	if err != nil {
 		a.Menu.Aviso = err.Error()
 		return err
@@ -189,10 +189,10 @@ func (a *App) desenharMenu(tela *ebiten.Image) {
 		a.textoGrande(tela, linha, 110, y, 3, cor)
 	}
 	ajuda := "Cima/Baixo: escolher linha   Esquerda/Direita: mudar   Enter: correr   T: treino da IA   Esc: sair"
-	texto(tela, ajuda, 80, 480)
-	texto(tela, "Dentro da corrida: WASD/setas dirigem (x e y), Esc volta ao menu", 80, 500)
+	texto(tela, ajuda, 80, 560)
+	texto(tela, "Dentro da corrida: WASD/setas dirigem (x e y), Esc volta ao menu", 80, 580)
 	if m.Aviso != "" {
-		a.textoGrande(tela, m.Aviso, 80, 560, 1.5, corErro)
+		a.textoGrande(tela, m.Aviso, 80, 630, 1.5, corErro)
 	}
 }
 

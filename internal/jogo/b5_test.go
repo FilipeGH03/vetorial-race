@@ -98,11 +98,12 @@ func TestMenuLimitesECampos(t *testing.T) {
 	// Cursor circula.
 	m.Baixo()
 	m.Baixo()
+	m.Baixo()
 	if m.Selecao != CampoPista {
 		t.Errorf("cursor: %d", m.Selecao)
 	}
 	m.Cima()
-	if m.Selecao != CampoSeed {
+	if m.Selecao != CampoInicio {
 		t.Errorf("cursor: %d", m.Selecao)
 	}
 }

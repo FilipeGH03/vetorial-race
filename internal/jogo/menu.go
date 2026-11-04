@@ -35,8 +35,17 @@ const (
 	CampoModo
 	CampoVoltas
 	CampoCarros
-	CampoSeed // seed do treino da IA (T)
+	CampoSeed   // seed do treino da IA (T)
+	CampoInicio // de onde o treino da IA (T) começa: zero ou cérebro salvo (D33)
 	numCampos
+)
+
+// InicioTreino diz de onde o treino visual começa (D33).
+type InicioTreino int8
+
+const (
+	InicioZero         InicioTreino = iota // população aleatória (padrão)
+	InicioCerebroSalvo                     // cerebros/<pista>.json + mutações dele
 )
 
 // Menu é o estado da tela inicial (sem janela, para poder ser testado): a pista,
@@ -46,8 +55,9 @@ type Menu struct {
 	Pista       int      // índice em Pistas
 	Modo        sim.Modo
 	Voltas      int
-	Carros      int    // contando o jogador
-	Seed        uint64 // seed do treino visual (T); mesma seed, mesmo resultado
+	Carros      int          // contando o jogador
+	Seed        uint64       // seed do treino visual (T); mesma seed, mesmo resultado
+	Inicio      InicioTreino // de onde o treino (T) começa (D33)
 	Selecao     Campo
 	Aviso       string // última mensagem (pista recusada, sem pistas)
 	DirCerebros string // pasta dos cérebros
@@ -119,6 +129,12 @@ func (m *Menu) mudar(d int) {
 		} else if d > 0 {
 			m.Seed++
 		}
+	case CampoInicio:
+		if m.Inicio == InicioZero {
+			m.Inicio = InicioCerebroSalvo
+		} else {
+			m.Inicio = InicioZero
+		}
 	}
 	m.Aviso = ""
 }
@@ -155,12 +171,17 @@ func (m *Menu) Linhas() [numCampos]string {
 	if m.Modo == sim.ModoEliminacao {
 		modo, voltas = "Eliminação (laser)", "-"
 	}
+	inicio := "zero"
+	if m.Inicio == InicioCerebroSalvo {
+		inicio = "cérebro salvo"
+	}
 	return [numCampos]string{
 		"Pista:   " + pista,
 		"Modo:    " + modo,
 		"Voltas:  " + voltas,
 		fmt.Sprintf("Carros:  %d (você + %d da IA)", m.Carros, m.Carros-1),
 		fmt.Sprintf("Seed do treino (T):  %d", m.Seed),
+		"Treino começa de:  " + inicio,
 	}
 }
 
