@@ -44,7 +44,7 @@ const OrcamentoQuadro = 9 * time.Millisecond
 // desenho.
 //
 // Teclas: Espaço pausa, +/- (ou cima/baixo) mudam a velocidade, S ou clique no
-// botão salvam, Esc sai.
+// botão salvam, N liga/desliga o painel da rede do líder (D32), Esc sai.
 type TreinoTela struct {
 	V *TreinoVisual
 
@@ -73,6 +73,9 @@ func (t *TreinoTela) Atualizar() (sair bool) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		return true
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyN) {
+		v.AlternarPainelRede()
+	}
 	x, y := ebiten.CursorPosition()
 	switch {
 	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
@@ -86,16 +89,16 @@ func (t *TreinoTela) Atualizar() (sair bool) {
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && image.Pt(x, y).In(BotaoSalvar):
 		_ = v.Salvar()
 	}
-	if v.Pausado {
-		return false
-	}
-	ini := time.Now()
-	for range v.Velocidade() {
-		v.Passo()
-		if time.Since(ini) > OrcamentoQuadro {
-			break
+	if !v.Pausado {
+		ini := time.Now()
+		for range v.Velocidade() {
+			v.Passo()
+			if time.Since(ini) > OrcamentoQuadro {
+				break
+			}
 		}
 	}
+	v.AtualizarModeloRede() // uma vez por quadro, com o estado depois dos ticks
 	return false
 }
 
@@ -132,6 +135,7 @@ func (t *TreinoTela) Draw(tela *ebiten.Image) {
 		t.desenharIndividuo(tela, lider, true)
 	}
 	t.desenharPainel(tela)
+	t.desenharRede(tela)
 	t.desenharGrafico(tela)
 	t.desenharBotao(tela)
 }
@@ -203,7 +207,7 @@ func TextoPainelTreino(v *TreinoVisual) []string {
 	}
 	melhor, media := v.DistanciaAoVivo()
 	linhas = append(linhas, fmt.Sprintf("ao vivo: distancia melhor %.0f px  media %.0f px", melhor, media))
-	linhas = append(linhas, "Espaco: pausa   +/-: velocidade   S: salvar melhor   Esc: sair")
+	linhas = append(linhas, "Espaco: pausa   +/-: velocidade   S: salvar melhor   N: rede   Esc: sair")
 	if v.Erro != nil {
 		linhas = append(linhas, "ERRO: "+v.Erro.Error())
 	}

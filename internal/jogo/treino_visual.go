@@ -64,7 +64,10 @@ type TreinoVisual struct {
 	Aviso     string // último resultado do botão salvar
 	Erro      error  // falha da evolução: o treino para
 
-	avals []ia.Avaliacao // avals[i] vai sendo preenchida rodada a rodada
+	PainelRedeVisivel bool // painel da rede do líder (D32); a tecla N alterna
+
+	avals      []ia.Avaliacao // avals[i] vai sendo preenchida rodada a rodada
+	modeloRede *ModeloRede    // rede do líder no último AtualizarModeloRede
 }
 
 // NovoTreinoVisual carrega a pista (recusa a que não cabe em 1280x720, D17) e
@@ -98,6 +101,8 @@ func NovoTreinoVisual(caminhoPista, dirCerebros string, seed uint64) (*TreinoVis
 		Pop:         pop,
 		DirCerebros: dirCerebros,
 		VelIndice:   VelocidadePadrao,
+
+		PainelRedeVisivel: true, // D32: começa ligado
 	}
 	v.novaGeracao()
 	return v, nil

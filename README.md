@@ -45,9 +45,13 @@ raios dos sensores (direções fixas do mundo) até a parede; o líder aparece e
 (bateu e ficou 1 s sem avançar, ou acabou o tempo) fica esmaecido. Cada geração tem 6 rodadas, uma por
 posição de `sim.Largada(p, 6)`, e a nota é a média das 6, como em `cmd/treino`. O painel mostra
 geração, rodada, melhor e média da pontuação da última geração e o melhor de todas, e o gráfico traça
-as duas curvas. Espaço pausa, `+`/`-` (ou cima/baixo) mudam a velocidade (1x a 32x), `S` ou o botão
-verde gravam o melhor cérebro em `cerebros/<pista>.json` (atenção: sobrescreve o cérebro que a corrida
-usa), Esc sai. `-seed n` muda a seed.
+as duas curvas. No canto de baixo à esquerda, um painel mostra a rede do líder (o carro amarelo) ao
+vivo: as 14 entradas com nome, os 12 neurônios ocultos e as 2 saídas, cada um colorido pela ativação do
+tick atual (laranja positivo, azul negativo), e as ligações coloridas pelo sinal do peso (verde positivo,
+vermelho negativo) e mais grossas quanto maior o |peso|. A rede troca quando muda o líder. `N` mostra ou
+esconde o painel (começa visível). Espaço pausa, `+`/`-` (ou cima/baixo) mudam a velocidade (1x a 32x),
+`S` ou o botão verde gravam o melhor cérebro em `cerebros/<pista>.json` (atenção: sobrescreve o cérebro
+que a corrida usa), Esc sai. `-seed n` muda a seed.
 
 ## Editor de pista
 
